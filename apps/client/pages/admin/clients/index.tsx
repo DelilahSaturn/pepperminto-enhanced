@@ -233,8 +233,12 @@ export default function Clients() {
         cell: ({ row }: any) => {
           return (
             <div className="space-x-4 flex flex-row">
-              {/* <UpdateClientModal client={row.original} />
-            <ClientNotesModal notes={row.original.notes} id={row.original.id} /> */}
+              <Link
+                href={`/admin/clients/${row.original.id}`}
+                className="rounded-md border border-primary/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm hover:bg-primary/10"
+              >
+                Edit
+              </Link>
               <button
                 type="button"
                 className="rounded-md border border-destructive/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-destructive shadow-sm hover:bg-destructive/10"

@@ -11,7 +11,7 @@ services:
       - pepperminto_postgres:/var/lib/postgresql/data
     expose:
       - 5432
-
+ 
   api:
     image: nulldoubt/pepperminto-api:latest
     container_name: pepperminto_api
@@ -23,39 +23,44 @@ services:
     environment:
       DATABASE_URL: postgresql://pepperminto:pepperminto@postgres:5432/pepperminto
     ports:
-      - "3001:3001"
-
+      - "3121:3001"
+ 
   client:
-    image: nulldoubt/pepperminto-client:latest
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
     container_name: pepperminto_client
     restart: unless-stopped
     env_file: .env
     ports:
-      - "3002:3002"
-
-  knowledge-base:
-    image: nulldoubt/pepperminto-knowledge-base:latest
-    container_name: pepperminto_kb
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3000:3000"
-
+      - "3122:3002"
+ 
   docs:
     image: nulldoubt/pepperminto-docs:latest
     container_name: pepperminto_docs
     restart: unless-stopped
     env_file: .env
     ports:
-      - "3003:3003"
-
+      - "3123:3003"
+ 
+  knowledge-base:
+    build:
+      context: .
+      dockerfile: apps/knowledge-base/Dockerfile
+    image: pepperminto-knowledge-base
+    container_name: pepperminto_kb
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3120:3000"
+ 
   landing-page:
     image: nulldoubt/pepperminto-landing-page:latest
     container_name: pepperminto_landing
     restart: unless-stopped
     env_file: .env
     ports:
-      - "3004:3004"
-
+      - "3124:3004"
+ 
 volumes:
   pepperminto_postgres:

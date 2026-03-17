@@ -31,17 +31,33 @@ const server: FastifyInstance = Fastify({
 const publicRoutes = new Set([
   "/",
   "/api/v1/auth/login",
+  "/api/v1/auth/user/register/external",
   "/api/v1/ticket/public/create",
   "/docs",
   "/docs/json",
   "/docs/yaml",
 ]);
 
+function normalizeUrl(url: string) {
+  const parts = url.split("/").filter(Boolean);
+
+  // Handle language-prefixed routes like /en/... or /en-US/...
+  if (parts.length > 0 && /^[a-z]{2}(-[A-Z]{2})?$/.test(parts[0])) {
+    const withoutLang = "/" + parts.slice(1).join("/");
+    return withoutLang.startsWith("//") ? withoutLang.slice(1) : withoutLang;
+  }
+
+  return url;
+}
+
 function isPublicRoute(url: string) {
+  const normalized = normalizeUrl(url);
   return (
-    publicRoutes.has(url) ||
-    url.startsWith("/docs/") ||
-    url.startsWith("/api/v1/knowledge-base/public")
+    publicRoutes.has(normalized) ||
+    // Allow slight variations (trailing slashes, query strings) for known public endpoints
+    normalized.startsWith("/api/v1/auth/user/register/external") ||
+    normalized.startsWith("/docs/") ||
+    normalized.startsWith("/api/v1/knowledge-base/public")
   );
 }
 

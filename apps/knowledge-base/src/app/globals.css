@@ -34,6 +34,14 @@ body {
   background-image: radial-gradient(#1f2937 0.5px, transparent 0.5px);
 }
 
+/* Markdown / article prose link color */
+.prose a {
+  color: #0ea5e9; /* light sky blue */
+}
+.dark .prose a {
+  color: #38bdf8;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;

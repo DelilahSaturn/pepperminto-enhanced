@@ -9,6 +9,7 @@ import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useUser } from "../../store/session";
+import { getCookie } from "cookies-next";
 import { toast } from "@/shadcn/hooks/use-toast";
 import {
   Select,
@@ -48,11 +49,18 @@ export default function ClientTicketNew() {
   const [priority, setPriority] = useState(pri[0]?.name ?? "");
 
   async function submitTicket() {
+    const token = getCookie("session");
+
     setIsLoading(true);
     await fetch(`/api/v1/ticket/create`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
       body: JSON.stringify({
         name: user.name,

@@ -193,11 +193,10 @@ export function CommandMenu() {
               <span>Closed Issues</span>
             </CommandItem>
             <CommandItem
-              onSelect={() =>
-                new KeyboardEvent("keydown", {
-                  key: "c",
-                })
-              }
+              onSelect={() => {
+                setOpen(false);
+                router.push("/new");
+              }}
             >
               <Plus className="mr-2 h-4 w-4" />
               <span>Create New Issue</span>

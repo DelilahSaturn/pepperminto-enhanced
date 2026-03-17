@@ -31,14 +31,16 @@ export default function TicketList({
   return (
     <div className="flex-1 overflow-y-auto">
       {tickets.map((ticket) => {
-        let p = ticket.priority;
-        let badge = p === "Low" ? low : p === "Normal" ? normal : high;
+        const p = (ticket.priority || "").toLowerCase();
+        const isMedium = p === "normal" || p === "medium";
+        let badge = p === "low" ? low : isMedium ? normal : high;
+        const displayPriority = p === "low" ? "Low" : isMedium ? "Medium" : "High";
 
         return (
           <ContextMenu key={ticket.id}>
             <ContextMenuTrigger>
               <Link href={`/issue/${ticket.id}`}>
-                <div className="flex flex-row w-full bg-white dark:bg-[#0A090C] dark:hover:bg-green-600 border-b-[1px] p-1.5 justify-between px-6 hover:bg-gray-100">
+                <div className="flex flex-row w-full bg-card/80 border-b border-border/60 p-1.5 justify-between px-6 hover:bg-accent/40">
                   <div className="flex flex-row items-center space-x-4">
                     {uiSettings.showTicketNumbers && (
                       <span className="text-xs font-semibold">#{ticket.Number}</span>
@@ -51,6 +53,30 @@ export default function TicketList({
                         {moment(ticket.createdAt).format("DD/MM/yyyy")}
                       </span>
                     )}
+                    {/* Status pill (open/closed) matching /issues/open & /issues/closed */}
+                    {ticket.isComplete ? (
+                      <span className="inline-flex items-center gap-x-1.5 rounded-md bg-red-100 px-2 justify-center py-1 text-xs ring-1 ring-inset ring-gray-500/10 font-medium text-red-700">
+                        <svg
+                          className="h-1.5 w-1.5 fill-red-500"
+                          viewBox="0 0 6 6"
+                          aria-hidden="true"
+                        >
+                          <circle cx={3} cy={3} r={3} />
+                        </svg>
+                        closed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-x-1.5 rounded-md justify-center font-medium bg-green-100 ring-1 ring-inset ring-gray-500/10 px-2 py-1 text-xs text-green-700">
+                        <svg
+                          className="h-1.5 w-1.5 fill-green-500"
+                          viewBox="0 0 6 6"
+                          aria-hidden="true"
+                        >
+                          <circle cx={3} cy={3} r={3} />
+                        </svg>
+                        open
+                      </span>
+                    )}
                     {uiSettings.showType && (
                       <span className={`inline-flex items-center rounded-md px-2 py-1 capitalize justify-center w-20 text-xs font-medium ring-1 ring-inset ring-gray-500/10 bg-orange-400 text-white`}>
                         {ticket.type}
@@ -58,7 +84,7 @@ export default function TicketList({
                     )}
                     {uiSettings.showPriority && (
                       <span className={`inline-flex items-center rounded-md px-2 py-1 capitalize justify-center w-20 text-xs font-medium ring-1 ring-inset ring-gray-500/10 ${badge}`}>
-                        {ticket.priority}
+                        {displayPriority}
                       </span>
                     )}
                     {uiSettings.showAvatars && ticket.assignedTo && (

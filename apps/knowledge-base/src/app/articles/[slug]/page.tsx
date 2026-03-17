@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CreateTicketModal from "../../../components/create-ticket-modal";
 import ThemeToggle from "../../../components/theme-toggle";
+import { renderMarkdownToHtml } from "../../components/MarkdownRenderer";
+
+export const dynamic = "force-dynamic";
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 const BASE_URL = process.env.BASE_URL || "https://pepperminto.dev";
@@ -33,7 +36,7 @@ async function getArticle(slug: string) {
   try {
     const res = await fetch(
       `${API_URL}/api/v1/knowledge-base/public/${encodeURIComponent(slug)}`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
 
     if (!res.ok) {
@@ -65,33 +68,37 @@ function extractTextFromBlock(block: BlockNode): string {
   return [contentText, childText].filter(Boolean).join(" ");
 }
 
-function getParagraphs(raw: string) {
-  if (!raw) return [];
+function normalizeToMarkdown(raw: string) {
+  if (!raw) return "";
   const trimmed = raw.trim();
+  // legacy BlockNote JSON -> plain text markdown
   if (trimmed.startsWith("[")) {
     try {
       const blocks = JSON.parse(trimmed) as BlockNode[];
       return blocks
         .map((block) => extractTextFromBlock(block))
-        .filter(Boolean);
+        .filter(Boolean)
+        .join("\n\n");
     } catch (error) {
-      return raw.split("\n");
+      return raw;
     }
   }
-  return raw.split("\n");
+  return raw;
 }
 
 export default async function ArticlePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const article = await getArticle(params.slug);
+  const { slug } = await params;
+  const article = await getArticle(slug);
   if (!article) {
     notFound();
   }
 
-  const paragraphs = getParagraphs(article.content);
+  const markdown = normalizeToMarkdown(article.content);
+  const html = renderMarkdownToHtml(markdown);
 
   return (
     <div className="min-h-screen bg-grid text-slate-900 dark:text-slate-100">
@@ -133,11 +140,10 @@ export default async function ArticlePage({
             Updated {formatDate(article.updatedAt)} · {article.author}
           </p>
 
-          <div className="mt-8 space-y-4 text-base leading-7 text-slate-700 dark:text-slate-200">
-            {paragraphs.map((line, index) => (
-              <p key={index}>{line}</p>
-            ))}
-          </div>
+          <div
+            className="mt-8 prose prose-slate max-w-none text-base leading-7 dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         </article>
       </main>
     </div>

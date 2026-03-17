@@ -15,8 +15,6 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shadcn/ui/context-menu";
-import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
-import { BlockNoteView } from "@blocknote/mantine";
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { getCookie } from "cookies-next";
 import moment from "moment";
@@ -24,7 +22,7 @@ import useTranslation from "next-translate/useTranslation";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import Frame from "react-frame-component";
+import TicketDetailContent from "../TicketDetailContent";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "use-debounce";
 
@@ -71,6 +69,12 @@ const ticketStatusMap = [
   { id: 3, value: "in_review", name: "In Review", icon: Loader },
   { id: 4, value: "done", name: "Done", icon: CircleCheck },
 ];
+
+const getStatusDisplayName = (status?: string | null) => {
+  if (!status) return "";
+  const match = ticketStatusMap.find((s) => s.value === status);
+  return match ? match.name : status;
+};
 
 const priorityOptions = [
   {
@@ -124,17 +128,6 @@ export default function Ticket() {
   useEffect(() => {
     refetch();
   }, [router]);
-
-  const [initialContent, setInitialContent] = useState<
-    PartialBlock[] | undefined | "loading"
-  >("loading");
-
-  const editor = useMemo(() => {
-    if (initialContent === "loading") {
-      return undefined;
-    }
-    return BlockNoteEditor.create({ initialContent });
-  }, [initialContent]);
 
   const [edit, setEdit] = useState(false);
   const [editTime, setTimeEdit] = useState(false);
@@ -423,7 +416,10 @@ export default function Ticket() {
   async function subscribe() {
     if (data && data.ticket && data.ticket.locked) return;
 
-    const isFollowing = data.ticket.following?.includes(user.id);
+    const following = Array.isArray(data?.ticket?.following)
+      ? (data.ticket.following as string[])
+      : [];
+    const isFollowing = following.includes(user.id);
     const action = isFollowing ? "unsubscribe" : "subscribe";
 
     const res = await fetch(`/api/v1/ticket/${action}/${id}`, {
@@ -581,59 +577,8 @@ export default function Ticket() {
     }
   }, [debouncedValue]);
 
-  async function loadFromStorage() {
-    const storageString = data.ticket.detail as PartialBlock[];
-    // if (storageString && isJsonString(storageString)) {
-    //   return JSON.parse(storageString) as PartialBlock[]
-    // } else {
-    //   return undefined;
-    // }
-    try {
-      // @ts-ignore
-      return JSON.parse(storageString) as PartialBlock[];
-    } catch (e) {
-      return undefined;
-    }
-  }
-
-  async function convertHTML() {
-    const blocks = (await editor.tryParseHTMLToBlocks(
-      data.ticket.detail
-    )) as PartialBlock[];
-    editor.replaceBlocks(editor.document, blocks);
-  }
-
-  // Loads the previously stored editor contents.
-  useEffect(() => {
-    if (isSuccess && data && data.ticket) {
-      loadFromStorage().then((content) => {
-        if (typeof content === "object") {
-          setInitialContent(content);
-        } else {
-          setInitialContent(undefined);
-        }
-      });
-    }
-  }, [status, data]);
-
-  useEffect(() => {
-    if (initialContent === undefined) {
-      convertHTML();
-    }
-  }, [initialContent]);
-
-  if (editor === undefined) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoaderCircle className="animate-spin" />
-      </div>
-    );
-  }
-
-  const handleInputChange = (editor) => {
-    if (data.ticket.locked) return;
-    setIssue(editor.document);
-  };
+  // Rich text editor (BlockNote) disabled in this build.
+  // Ticket details are shown in a read-only frame below.
 
   async function updateTicketStatus(e: any, ticket: any) {
     await fetch(`/api/v1/ticket/status/update`, {
@@ -906,9 +851,9 @@ export default function Ticket() {
                           <UserCombo
                             value={ticketStatusMap}
                             update={setTicketStatus}
-                            defaultName={
-                              data.ticket.status ? data.ticket.status : ""
-                            }
+                            defaultName={getStatusDisplayName(
+                              data.ticket.status
+                            )}
                             disabled={data.ticket.locked}
                             showIcon={true}
                             placeholder="Change Client..."
@@ -920,29 +865,13 @@ export default function Ticket() {
                   </aside>
                   <div className="py-3 xl:pb-0 xl:pt-2 ">
                     <div className="prose max-w-none mt-2">
-                      {!data.ticket.fromImap ? (
-                        <>
-                          <div className="rounded-md border border-border/60 bg-background/60 p-3">
-                            <BlockNoteView
-                              editor={editor}
-                              sideMenu={false}
-                              theme={theme === "dark" ? "dark" : "light"}
-                              className="min-h-[50vh] bg-transparent"
-                              onChange={handleInputChange}
-                              editable={!data.ticket.locked}
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="">
-                          <div className="break-words bg-white rounded-md text-black">
-                            <Frame
-                              className="min-h-[60vh] h-full max-h-[80vh] overflow-y-auto w-full"
-                              initialContent={data.ticket.detail}
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <div className="min-h-[30vh] max-h-[80vh] overflow-y-auto w-full">
+                        <TicketDetailContent
+                          detail={data.ticket.detail}
+                          fromImap={data.ticket.fromImap}
+                          className="bg-white dark:bg-card rounded-md p-4"
+                        />
+                      </div>
                     </div>
                   </div>
                   <section
@@ -960,16 +889,15 @@ export default function Ticket() {
 
                         <div className="flex flex-row items-center space-x-2">
                           <Button
-                            variant={
-                              data.ticket.following?.includes(user.id)
-                                ? "ghost"
-                                : "ghost"
-                            }
+                            variant="ghost"
                             onClick={() => subscribe()}
                             size="sm"
                             className="flex items-center gap-1 group"
                           >
-                            {data.ticket.following?.includes(user.id) ? (
+                            {Array.isArray(data?.ticket?.following) &&
+                            (data.ticket.following as string[]).includes(
+                              user.id
+                            ) ? (
                               <>
                                 <span className="text-xs group-hover:hidden">
                                   following
@@ -983,8 +911,8 @@ export default function Ticket() {
                             )}
                           </Button>
 
-                          {data.ticket.following &&
-                            data.ticket.following.length > 0 && (
+                          {Array.isArray(data.ticket.following) &&
+                            (data.ticket.following as string[]).length > 0 && (
                               <div className="flex space-x-2">
                                 <Popover>
                                   <PopoverTrigger>
@@ -993,31 +921,37 @@ export default function Ticket() {
                                   <PopoverContent>
                                     <div className="flex flex-col space-y-1">
                                       <span className="text-xs">Followers</span>
-                                      {data.ticket.following.map(
-                                        (follower: any) => {
-                                          const userMatch = users.find(
-                                            (user) =>
-                                              user.id === follower &&
-                                              user.id !==
-                                                data.ticket.assignedTo.id
-                                          );
-                                          console.log(userMatch);
-                                          return userMatch ? (
-                                            <div key={follower.id}>
-                                              <span>{userMatch.name}</span>
-                                            </div>
-                                          ) : null;
-                                        }
-                                      )}
+                                      {Array.isArray(data.ticket.following) &&
+                                        Array.isArray(users) &&
+                                        (data.ticket.following as string[]).map(
+                                          (follower: any) => {
+                                            const userMatch = users.find(
+                                              (u: any) =>
+                                                u.id === follower &&
+                                                (!data.ticket.assignedTo ||
+                                                  u.id !==
+                                                    data.ticket.assignedTo.id)
+                                            );
+                                            return userMatch ? (
+                                              <div key={follower}>
+                                                <span>{userMatch.name}</span>
+                                              </div>
+                                            ) : null;
+                                          }
+                                        )}
 
-                                      {data.ticket.following.filter(
-                                        (follower: any) =>
-                                          follower !== data.ticket.assignedTo.id
-                                      ).length === 0 && (
-                                        <span className="text-xs">
-                                          This issue has no followers
-                                        </span>
-                                      )}
+                                      {Array.isArray(data.ticket.following) &&
+                                        (!Array.isArray(users) ||
+                                          (data.ticket.following as string[]).filter(
+                                            (follower: any) =>
+                                              !data.ticket.assignedTo ||
+                                              follower !==
+                                                data.ticket.assignedTo.id
+                                          ).length === 0) && (
+                                          <span className="text-xs">
+                                            This issue has no followers
+                                          </span>
+                                        )}
                                     </div>
                                   </PopoverContent>
                                 </Popover>

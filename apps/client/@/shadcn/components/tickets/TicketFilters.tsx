@@ -10,31 +10,38 @@ interface TicketFiltersProps {
   selectedPriorities: string[];
   selectedStatuses: string[];
   selectedAssignees: string[];
+  selectedTypes?: string[];
   users: any[];
+  types?: string[];
   onPriorityToggle: (priority: string) => void;
   onStatusToggle: (status: string) => void;
   onAssigneeToggle: (assignee: string) => void;
+  onTypeToggle?: (type: string) => void;
   onClearFilters: () => void;
 }
 
-type FilterType = "priority" | "status" | "assignee" | null;
+type FilterType = "priority" | "status" | "assignee" | "type" | null;
 
 export default function TicketFilters({
   selectedPriorities,
   selectedStatuses,
   selectedAssignees,
+  selectedTypes = [],
   users,
+  types = [],
   onPriorityToggle,
   onStatusToggle,
   onAssigneeToggle,
+  onTypeToggle,
   onClearFilters,
 }: TicketFiltersProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>(null);
   const [filterSearch, setFilterSearch] = useState("");
 
-  const priorities = ["low", "normal", "high"];
+  const priorities = ["low", "medium", "high"];
   const statuses = ["open", "closed"];
   const assignees = ["Unassigned", ...users.map(u => u.name)];
+  const ticketTypes = types.length ? types : ["incident", "service", "feature", "bug", "maintenance", "access", "feedback"];
 
   const filteredPriorities = priorities.filter((priority) =>
     priority.toLowerCase().includes(filterSearch.toLowerCase())
@@ -46,6 +53,10 @@ export default function TicketFilters({
 
   const filteredAssignees = assignees.filter((assignee) =>
     assignee.toLowerCase().includes(filterSearch.toLowerCase())
+  );
+
+  const filteredTypes = ticketTypes.filter((type) =>
+    type.toLowerCase().includes(filterSearch.toLowerCase())
   );
 
   return (
@@ -77,6 +88,11 @@ export default function TicketFilters({
                   <CommandItem onSelect={() => setActiveFilter("assignee")}>
                     Assignee
                   </CommandItem>
+                  {onTypeToggle && (
+                    <CommandItem onSelect={() => setActiveFilter("type")}>
+                      Type
+                    </CommandItem>
+                  )}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -110,7 +126,9 @@ export default function TicketFilters({
                         >
                           <CheckIcon className={cn("h-4 w-4")} />
                         </div>
-                        <span className="capitalize">{priority}</span>
+                        <span className="capitalize">
+                          {priority}
+                        </span>
                       </CommandItem>
                     ))}
 
@@ -161,6 +179,30 @@ export default function TicketFilters({
                         {assignee}
                       </CommandItem>
                     ))}
+
+                  {activeFilter === "type" &&
+                    filteredTypes.map((type) => (
+                      <CommandItem
+                        key={type}
+                        onSelect={() => {
+                          onTypeToggle?.(type);
+                          setActiveFilter(null);
+                          setFilterSearch("");
+                        }}
+                      >
+                        <div
+                          className={cn(
+                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                            selectedTypes.includes(type)
+                              ? "bg-primary text-primary-foreground"
+                              : "opacity-50 [&_svg]:invisible"
+                          )}
+                        >
+                          <CheckIcon className={cn("h-4 w-4")} />
+                        </div>
+                        <span className="capitalize">{type}</span>
+                      </CommandItem>
+                    ))}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -172,7 +214,7 @@ export default function TicketFilters({
         {selectedPriorities.map((priority) => (
           <FilterBadge
             key={`priority-${priority}`}
-            text={`Priority: ${priority}`}
+            text={`Priority: ${priority.charAt(0).toUpperCase() + priority.slice(1)}`}
             onRemove={() => onPriorityToggle(priority)}
           />
         ))}
@@ -193,9 +235,18 @@ export default function TicketFilters({
           />
         ))}
 
+        {selectedTypes.map((type) => (
+          <FilterBadge
+            key={`type-${type}`}
+            text={`Type: ${type}`}
+            onRemove={() => onTypeToggle?.(type)}
+          />
+        ))}
+
         {(selectedPriorities.length > 0 ||
           selectedStatuses.length > 0 ||
-          selectedAssignees.length > 0) && (
+          selectedAssignees.length > 0 ||
+          selectedTypes.length > 0) && (
           <Button
             variant="ghost"
             size="sm"

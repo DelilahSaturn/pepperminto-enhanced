@@ -93,17 +93,18 @@ export default function Home() {
       });
   }
 
+  const locale = router.locale || user?.language || "en";
   const stats = [
-    { name: "Open Issues", stat: openTickets, href: "/issues" },
+    { name: "Open Issues", stat: openTickets, href: `/${locale}/issues/open` },
     {
       name: "Completed Issues",
       stat: completedTickets,
-      href: "/issues?filter=closed",
+      href: `/${locale}/issues/closed`,
     },
     {
       name: "Unassigned Issues",
       stat: unassigned,
-      href: "/issues?filter=unassigned",
+      href: `/${locale}/issues?filter=unassigned`,
     },
   ];
 
@@ -221,19 +222,19 @@ export default function Home() {
                                 </dl>
                               </TableCell>
                               <TableCell className="hidden px-3 py-1 text-sm text-gray-500 lg:table-cell w-[64px]">
-                                {item.priority === "Low" && (
+                                {(item.priority?.toLowerCase() === "low" || item.priority === "Low") && (
                                   <span className="inline-flex w-full justify-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700  ring-1 ring-inset ring-blue-600/20">
-                                    {item.priority}
+                                    Low
                                   </span>
                                 )}
-                                {item.priority === "Normal" && (
+                                {(item.priority?.toLowerCase() === "normal" || item.priority?.toLowerCase() === "medium" || item.priority === "Normal") && (
                                   <span className="inline-flex items-center w-full justify-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                                    {item.priority}
+                                    Medium
                                   </span>
                                 )}
-                                {item.priority === "High" && (
+                                {(item.priority?.toLowerCase() === "high" || item.priority === "High") && (
                                   <span className="inline-flex items-center w-full justify-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-                                    {item.priority}
+                                    High
                                   </span>
                                 )}
                               </TableCell>

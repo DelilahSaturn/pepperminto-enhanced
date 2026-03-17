@@ -1,6 +1,9 @@
 import Link from "next/link";
 import CreateTicketModal from "../components/create-ticket-modal";
 import ThemeToggle from "../components/theme-toggle";
+import { renderMarkdownToHtml } from "./components/MarkdownRenderer";
+
+export const dynamic = "force-dynamic";
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 const BASE_URL = process.env.BASE_URL || "https://pepperminto.dev";
@@ -38,7 +41,7 @@ async function getArticles(query?: string, tag?: string) {
   try {
     const res = await fetch(
       `${API_URL}/api/v1/knowledge-base/public?${params.toString()}`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
 
     if (!res.ok) {
@@ -85,13 +88,32 @@ function getExcerpt(raw: string) {
   return raw;
 }
 
+function normalizeToMarkdown(raw: string) {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  // legacy BlockNote JSON -> plain text markdown
+  if (trimmed.startsWith("[")) {
+    try {
+      const blocks = JSON.parse(trimmed) as BlockNode[];
+      return blocks
+        .map((block) => extractTextFromBlock(block))
+        .filter(Boolean)
+        .join("\n\n");
+    } catch (error) {
+      return raw;
+    }
+  }
+  return raw;
+}
+
 export default async function KnowledgeBasePage({
   searchParams,
 }: {
-  searchParams: { q?: string; tag?: string };
+  searchParams: Promise<{ q?: string; tag?: string }>;
 }) {
-  const query = searchParams.q || "";
-  const tag = searchParams.tag || "";
+  const resolved = await searchParams;
+  const query = (typeof resolved.q === "string" ? resolved.q : resolved.q?.[0]) || "";
+  const tag = (typeof resolved.tag === "string" ? resolved.tag : resolved.tag?.[0]) || "";
   const articles = await getArticles(query, tag);
 
   const tags = Array.from(
@@ -222,10 +244,15 @@ export default async function KnowledgeBasePage({
                       {formatDate(article.updatedAt)}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    {getExcerpt(article.content).slice(0, 180)}
-                    {getExcerpt(article.content).length > 180 ? "..." : ""}
-                  </p>
+                  <div className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-h-20 overflow-hidden prose prose-sm max-w-none dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdownToHtml(
+                          normalizeToMarkdown(article.content)
+                        ),
+                      }}
+                    />
+                  </div>
                   <div className="mt-4 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-500">
                     <span>By {article.author}</span>
                     <span className="text-slate-700">•</span>

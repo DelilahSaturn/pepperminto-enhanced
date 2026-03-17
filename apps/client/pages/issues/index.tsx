@@ -42,9 +42,11 @@ export default function Tickets() {
     selectedPriorities,
     selectedStatuses,
     selectedAssignees,
+    selectedTypes,
     handlePriorityToggle,
     handleStatusToggle,
     handleAssigneeToggle,
+    handleTypeToggle,
     clearFilters,
     filteredTickets
   } = useTicketFilters(data?.tickets);
@@ -66,7 +68,8 @@ export default function Tickets() {
     updateTicketStatus,
     updateTicketAssignee,
     updateTicketPriority,
-    deleteTicket
+    updateTicketWorkflowStatus,
+    deleteTicket,
   } = useTicketActions(token, refetch);
 
   // Update local storage when filters change
@@ -119,16 +122,27 @@ export default function Tickets() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="py-2 px-3 bg-background border-b-[1px] flex flex-row items-center justify-between">
+    <div className="flex flex-col h-screen bg-background">
+      <div className="py-2 px-3 bg-card/80 border-b border-border/60 flex flex-row items-center justify-between">
         <TicketFilters
           selectedPriorities={selectedPriorities}
           selectedStatuses={selectedStatuses}
           selectedAssignees={selectedAssignees}
+          selectedTypes={selectedTypes}
           users={users}
+          types={Array.from(
+            new Set(
+              (data?.tickets || [])
+                .map((t: any) =>
+                  typeof t?.type === "string" ? t.type.toLowerCase() : ""
+                )
+                .filter((x: string) => Boolean(x))
+            )
+          ) as string[]}
           onPriorityToggle={handlePriorityToggle}
           onStatusToggle={handleStatusToggle}
           onAssigneeToggle={handleAssigneeToggle}
+          onTypeToggle={handleTypeToggle}
           onClearFilters={clearFilters}
         />
         
@@ -156,9 +170,29 @@ export default function Tickets() {
           uiSettings={uiSettings}
         />
       ) : (
-        <TicketKanban 
-          columns={kanbanColumns} 
+        <TicketKanban
+          columns={kanbanColumns}
           uiSettings={uiSettings}
+          onTicketMove={(ticketId, targetColumnId) => {
+            const ticket = sortedTickets.find((t) => t.id === ticketId);
+            if (!ticket) return;
+
+            if (kanbanGrouping === "priority") {
+              const priorityMap: Record<string, string> = {
+                high: "High",
+                medium: "Normal",
+                low: "Low",
+              };
+              const newPriority = priorityMap[targetColumnId];
+              if (newPriority) {
+                updateTicketPriority(ticket, newPriority);
+              }
+            }
+
+            if (kanbanGrouping === "status") {
+              updateTicketWorkflowStatus(ticket, targetColumnId);
+            }
+          }}
         />
       )}
     </div>

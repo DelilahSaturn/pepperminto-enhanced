@@ -132,7 +132,7 @@ export function IconCombo({
 }) {
   const [open, setOpen] = React.useState(false);
   const [selectedStatus, setSelectedStatus] = React.useState<any | null>(null);
-  const defaultIcon = value.find((k) => k.value === defaultName);
+  const defaultStatus = value.find((k) => k.value === defaultName);
 
   console.log(disabled);
 
@@ -158,21 +158,23 @@ export function IconCombo({
                   </div>
                 )}
                 <span className="mt-[2.5px] capitalize">
-                  {selectedStatus.value}
+                  {selectedStatus.name}
                 </span>
               </div>
-            ) : defaultName ? (
+            ) : defaultStatus ? (
               <div className="flex flex-row space-x-2">
                 <div className="flex-shrink-0">
                   <span className="inline-flex h-6 w-6 pl-2.5 items-center justify-center ">
                     <span className="text-xs font-medium leading-none text-foreground uppercase ">
-                      {defaultIcon && (
-                        <defaultIcon.icon className="mr-2 h-4 w-4 shrink-0" />
+                      {defaultStatus.icon && (
+                        <defaultStatus.icon className="mr-2 h-4 w-4 shrink-0" />
                       )}
                     </span>
                   </span>
                 </div>
-                <span className="mt-[2.5px] capitalize">{defaultName}</span>
+                <span className="mt-[2.5px] capitalize">
+                  {defaultStatus.name}
+                </span>
               </div>
             ) : (
               <span>unassigned</span>

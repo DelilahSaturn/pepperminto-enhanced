@@ -33,7 +33,6 @@ export function ticketRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/api/v1/ticket/create",
     {
-      preHandler: requirePermission(["issue::create"]),
       schema: {
         body: {
           type: "object",
@@ -77,6 +76,11 @@ export function ticketRoutes(fastify: FastifyInstance) {
       }: any = request.body;
 
       const user = await checkSession(request);
+      if (!user) {
+        return reply.code(401).send({
+          message: "Unauthorized",
+        });
+      }
 
       const ticket: any = await prisma.ticket.create({
         data: {
@@ -1516,7 +1520,9 @@ export function ticketRoutes(fastify: FastifyInstance) {
           where: { id: id },
         });
 
-        const following = ticket?.following as string[];
+        const following = Array.isArray(ticket?.following)
+          ? (ticket!.following as string[])
+          : [];
 
         if (following.includes(user!.id)) {
           reply.send({
@@ -1580,7 +1586,9 @@ export function ticketRoutes(fastify: FastifyInstance) {
           where: { id: id },
         });
 
-        const following = ticket?.following as string[];
+        const following = Array.isArray(ticket?.following)
+          ? (ticket!.following as string[])
+          : [];
 
         if (!following.includes(user!.id)) {
           return reply.send({

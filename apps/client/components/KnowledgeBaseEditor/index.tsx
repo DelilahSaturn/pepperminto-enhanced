@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { toast } from "@/shadcn/hooks/use-toast";
 import {
   DropdownMenu,
@@ -9,71 +8,44 @@ import {
 import { Checkbox } from "@/shadcn/ui/checkbox";
 import { Input } from "@/shadcn/ui/input";
 import { Label } from "@/shadcn/ui/label";
-import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
-import { BlockNoteView } from "@blocknote/mantine";
+import { Textarea } from "@/shadcn/ui/textarea";
+import { MarkdownEditor } from "../MarkdownEditor";
 import { getCookie } from "cookies-next";
 import { Ellipsis } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { useUser } from "../../store/session";
 
-function isHTML(str) {
-  var a = document.createElement("div");
-  a.innerHTML = str;
-
-  for (var c = a.childNodes, i = c.length; i--; ) {
-    if (c[i].nodeType == 1) return true;
-  }
-
-  return false;
-}
-
-function toCsv(tags) {
+function toCsv(tags: string[] | null | undefined) {
   return Array.isArray(tags) ? tags.join(", ") : "";
 }
 
 export default function KnowledgeBaseEditor() {
   const router = useRouter();
   const token = getCookie("session");
-  const { theme } = useTheme();
-
   const { user } = useUser();
 
-  const [initialContent, setInitialContent] = useState<
-    PartialBlock[] | undefined | "loading"
-  >("loading");
-
-  const editor = useMemo(() => {
-    if (initialContent === "loading") {
-      return undefined;
-    }
-    return BlockNoteEditor.create({ initialContent });
-  }, [initialContent]);
-
-  const [value, setValue] = useState<any>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState();
-  const [ready, setReady] = useState(false);
+  const [lastSaved, setLastSaved] = useState<number | undefined>(undefined);
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [author, setAuthor] = useState("");
   const [tags, setTags] = useState("");
   const [published, setPublished] = useState(false);
+  const [body, setBody] = useState("");
 
-  const [debouncedValue] = useDebounce(value, 700);
   const [debouncedTitle] = useDebounce(title, 700);
   const [debouncedSlug] = useDebounce(slug, 700);
   const [debouncedAuthor] = useDebounce(author, 700);
   const [debouncedTags] = useDebounce(tags, 700);
   const [debouncedPublished] = useDebounce(published, 700);
+  const [debouncedBody] = useDebounce(body, 700);
 
   async function fetchArticle() {
-    setValue(undefined);
     setLoading(true);
 
     const res = await fetch(`/api/v1/knowledge-base/${router.query.id}`, {
@@ -82,7 +54,7 @@ export default function KnowledgeBaseEditor() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-    }).then((res) => res.json());
+    }).then((r) => r.json());
 
     if (!res.success) {
       toast({
@@ -95,21 +67,17 @@ export default function KnowledgeBaseEditor() {
     }
 
     const article = res.article;
-    await loadFromStorage(article.content).then((content) => {
-      setInitialContent(content);
-    });
 
     setTitle(article.title || "");
     setSlug(article.slug || "");
     setAuthor(article.author || "");
     setTags(toCsv(article.tags));
     setPublished(Boolean(article.public));
+    setBody(article.content || "");
     setLoading(false);
-    setReady(true);
   }
 
   async function updateArticle() {
-    if (!ready) return;
     setSaving(true);
 
     const payload: any = {
@@ -118,11 +86,8 @@ export default function KnowledgeBaseEditor() {
       author: debouncedAuthor,
       tags: debouncedTags,
       published: debouncedPublished,
+      body: debouncedBody,
     };
-
-    if (debouncedValue !== undefined) {
-      payload.body = JSON.stringify(debouncedValue);
-    }
 
     const res = await fetch(`/api/v1/knowledge-base/${router.query.id}`, {
       method: "PUT",
@@ -131,18 +96,16 @@ export default function KnowledgeBaseEditor() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
-    });
+    }).then((r) => r.json());
 
-    const data = await res.json();
     setSaving(false);
-    let date = new Date();
-    setLastSaved(new Date(date).getTime());
+    setLastSaved(Date.now());
 
-    if (data.status || data.success === false) {
+    if (res.status || res.success === false) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: data.message || "Unable to update",
+        description: res.message || "Unable to update",
       });
     }
   }
@@ -173,55 +136,29 @@ export default function KnowledgeBaseEditor() {
   useEffect(() => {
     if (!router.query.id) return;
     fetchArticle();
-  }, [router]);
-
-  useEffect(() => {
-    if (editor && ready && value === undefined) {
-      setValue(editor.document);
-    }
-  }, [editor, ready, value]);
+  }, [router.query.id]);
 
   useEffect(() => {
     if (
-      debouncedValue ||
-      debouncedTitle ||
-      debouncedSlug ||
-      debouncedTags ||
-      debouncedAuthor ||
-      debouncedPublished !== undefined
+      !loading &&
+      (debouncedTitle ||
+        debouncedSlug ||
+        debouncedAuthor ||
+        debouncedTags ||
+        debouncedBody ||
+        debouncedPublished !== undefined)
     ) {
       updateArticle();
     }
   }, [
-    debouncedValue,
     debouncedTitle,
     debouncedSlug,
     debouncedAuthor,
     debouncedTags,
+    debouncedBody,
     debouncedPublished,
+    loading,
   ]);
-
-  async function loadFromStorage(val) {
-    const storageString = val;
-
-    if (isHTML(storageString)) {
-      return undefined;
-    } else {
-      return storageString
-        ? (JSON.parse(storageString) as PartialBlock[])
-        : undefined;
-    }
-  }
-
-  useEffect(() => {
-    if (editor && initialContent === undefined) {
-      editor.replaceBlocks(editor.document, []);
-    }
-  }, [initialContent, editor]);
-
-  if (editor === undefined) {
-    return "Loading content...";
-  }
 
   if (!user?.isAdmin) {
     return (
@@ -236,9 +173,9 @@ export default function KnowledgeBaseEditor() {
     );
   }
 
-  const handleInputChange = (editor) => {
-    setValue(editor.document);
-  };
+  if (loading) {
+    return <span>Loading content...</span>;
+  }
 
   return (
     <>
@@ -248,7 +185,8 @@ export default function KnowledgeBaseEditor() {
             <span>saving ....</span>
           ) : (
             <span className="cursor-pointer">
-              last saved: {moment(lastSaved).format("hh:mm:ss")}
+              last saved:{" "}
+              {lastSaved ? moment(lastSaved).format("hh:mm:ss") : "—"}
             </span>
           )}
           <span className="text-xs text-gray-500">
@@ -269,67 +207,63 @@ export default function KnowledgeBaseEditor() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {!loading && (
-        <div className="m-h-[90vh] p-2 w-full flex justify-center">
-          <div className="w-full max-w-3xl space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="text-sm text-foreground">Title</Label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="mt-2 bg-background/60"
-                />
-              </div>
-              <div>
-                <Label className="text-sm text-foreground">Slug</Label>
-                <Input
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="mt-2 bg-background/60"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="text-sm text-foreground">Author</Label>
-                <Input
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  className="mt-2 bg-background/60"
-                />
-              </div>
-              <div>
-                <Label className="text-sm text-foreground">Tags (CSV)</Label>
-                <Input
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  className="mt-2 bg-background/60"
-                />
-              </div>
-            </div>
-
-            <Label className="flex items-center gap-2 text-sm text-foreground">
-              <Checkbox
-                checked={published}
-                onCheckedChange={(checked) => setPublished(Boolean(checked))}
+      <div className="m-h-[90vh] p-2 w-full flex justify-center">
+        <div className="w-full max-w-3xl space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-sm text-foreground">Title</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="mt-2 bg-background/60"
               />
-              Publish to public knowledge base
-            </Label>
-
-            <div className="rounded-md border border-border/60 bg-background/60 p-3">
-              <BlockNoteView
-                editor={editor}
-                sideMenu={false}
-                theme={theme === "dark" ? "dark" : "light"}
-                className="min-h-[50vh] bg-transparent"
-                onChange={handleInputChange}
+            </div>
+            <div>
+              <Label className="text-sm text-foreground">Slug</Label>
+              <Input
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="mt-2 bg-background/60"
               />
             </div>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-sm text-foreground">Author</Label>
+              <Input
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                className="mt-2 bg-background/60"
+              />
+            </div>
+            <div>
+              <Label className="text-sm text-foreground">Tags (CSV)</Label>
+              <Input
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="mt-2 bg-background/60"
+              />
+            </div>
+          </div>
+
+          <Label className="flex items-center gap-2 text-sm text-foreground">
+            <Checkbox
+              checked={published}
+              onCheckedChange={(checked) => setPublished(Boolean(checked))}
+            />
+            Publish to public knowledge base
+          </Label>
+
+          <div className="rounded-md border border-border/60 bg-background/60 p-3">
+            <MarkdownEditor
+              value={body}
+              onChange={setBody}
+              placeholder="Write the article content here using markdown (headings, lists, **bold**, _italic_, `code`)..."
+            />
+          </div>
         </div>
-      )}
+      </div>
     </>
   );
 }

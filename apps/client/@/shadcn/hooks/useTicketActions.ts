@@ -66,6 +66,10 @@ export function useTicketActions(token: string, refetch: () => void) {
 
   const updateTicketPriority = async (ticket: Ticket, priority: string) => {
     try {
+      // API uses "Normal" for middle priority; UI uses low, Medium, high only
+      const apiPriority = priority.toLowerCase() === "medium" ? "Normal" : priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase();
+      const displayPriority = priority.toLowerCase() === "medium" ? "Medium" : apiPriority;
+
       const response = await fetch(`/api/v1/ticket/update`, {
         method: "PUT",
         headers: {
@@ -77,7 +81,7 @@ export function useTicketActions(token: string, refetch: () => void) {
           detail: ticket.detail,
           note: ticket.note,
           title: ticket.title,
-          priority: priority,
+          priority: apiPriority,
           status: ticket.status,
         }),
       });
@@ -86,7 +90,7 @@ export function useTicketActions(token: string, refetch: () => void) {
 
       toast({
         title: "Priority updated",
-        description: `Ticket priority set to ${priority}`,
+        description: `Ticket priority set to ${displayPriority}`,
         duration: 3000,
       });
       refetch();
@@ -94,6 +98,42 @@ export function useTicketActions(token: string, refetch: () => void) {
       toast({
         title: "Error",
         description: "Failed to update priority",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const updateTicketWorkflowStatus = async (ticket: Ticket, status: string) => {
+    try {
+      const response = await fetch(`/api/v1/ticket/update`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id: ticket.id,
+          detail: ticket.detail,
+          note: ticket.note,
+          title: ticket.title,
+          priority: ticket.priority,
+          status,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update status");
+
+      toast({
+        title: "Status updated",
+        description: `Ticket moved to ${status.replace("_", " ")}`,
+        duration: 3000,
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update status",
         variant: "destructive",
         duration: 3000,
       });
@@ -133,6 +173,7 @@ export function useTicketActions(token: string, refetch: () => void) {
     updateTicketStatus,
     updateTicketAssignee,
     updateTicketPriority,
+    updateTicketWorkflowStatus,
     deleteTicket
   };
 }

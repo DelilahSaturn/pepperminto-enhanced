@@ -6,6 +6,7 @@ import { Checkbox } from "@/shadcn/ui/checkbox";
 import { Input } from "@/shadcn/ui/input";
 import { Label } from "@/shadcn/ui/label";
 import { Textarea } from "@/shadcn/ui/textarea";
+import { MarkdownEditor } from "../../components/MarkdownEditor";
 
 async function getArticles() {
   const res = await fetch(`/api/v1/knowledge-base/all`, {
@@ -242,14 +243,15 @@ export default function KnowledgeBaseAdmin() {
 
               <div>
                 <Label className="text-sm text-foreground">
-                  Body
+                  Body (Markdown)
                 </Label>
-                <Textarea
-                  value={body}
-                  onChange={(event) => setBody(event.target.value)}
-                  className="mt-2 h-48 bg-background/60"
-                  placeholder="Write the article content here..."
-                />
+                <div className="mt-2">
+                  <MarkdownEditor
+                    value={body}
+                    onChange={setBody}
+                    placeholder="Write the article content here using markdown (headings, lists, **bold**, _italic_, `code`)..."
+                  />
+                </div>
               </div>
 
               <Label className="inline-flex items-center gap-3 text-sm text-muted-foreground">

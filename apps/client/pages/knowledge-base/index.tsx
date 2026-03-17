@@ -95,7 +95,7 @@ export default function KnowledgeBaseIndex() {
         title: "Untitled knowledge base article",
         body: "",
         tags: "",
-        published: false,
+        published: true,
       }),
     }).then((res) => res.json());
 

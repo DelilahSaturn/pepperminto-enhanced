@@ -48,9 +48,11 @@ export function useTicketView(tickets: Ticket[] = []) {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'oldest':
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      case 'priority':
-        const priorityOrder = { high: 0, normal: 1, low: 2 };
-        return priorityOrder[a.priority.toLowerCase()] - priorityOrder[b.priority.toLowerCase()];
+      case 'priority': {
+        const norm = (p: string) => (p?.toLowerCase() === "normal" ? "medium" : (p || "").toLowerCase());
+        const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+        return (priorityOrder[norm(a.priority)] ?? 1) - (priorityOrder[norm(b.priority)] ?? 1);
+      }
       case 'title':
         return a.title.localeCompare(b.title);
       default:
@@ -102,10 +104,10 @@ export function useTicketView(tickets: Ticket[] = []) {
             tickets: sortedTickets.filter(t => t.priority.toLowerCase() === 'high'),
           },
           {
-            id: 'normal',
-            title: 'Normal',
+            id: 'medium',
+            title: 'Medium',
             color: 'bg-green-500',
-            tickets: sortedTickets.filter(t => t.priority.toLowerCase() === 'normal'),
+            tickets: sortedTickets.filter(t => { const p = t.priority.toLowerCase(); return p === 'normal' || p === 'medium'; }),
           },
           {
             id: 'low',

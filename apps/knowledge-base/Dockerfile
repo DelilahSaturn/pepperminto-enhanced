@@ -19,7 +19,7 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --no-frozen-lockfile
 COPY --from=builder /app/out/full/ .
 COPY turbo.json /app/turbo.json
 ENV NEXT_TELEMETRY_DISABLED=1

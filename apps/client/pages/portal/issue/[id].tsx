@@ -12,8 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getCookie } from "cookies-next";
 import useTranslation from "next-translate/useTranslation";
-import Frame from "react-frame-component";
-
+import TicketDetailContent from "../../../components/TicketDetailContent";
 import { useUser } from "../../../store/session";
 import { classNames } from "@/shadcn/lib/utils";
 import {
@@ -303,19 +302,11 @@ export default function Ticket() {
                 <div className="py-3 xl:pb-0 xl:pt-2">
                   <span className="text-sm font-bold">{t("description")}</span>
                   <div className="prose max-w-none">
-                    <div className="">
-                      {data.ticket.fromImap ? (
-                        <div className="break-words bg-white rounded-md p-4 text-black">
-                          <Frame
-                            className="min-h-[60vh] h-full w-full"
-                            initialContent={data.ticket.detail}
-                          >
-                            {" "}
-                          </Frame>
-                        </div>
-                      ) : (
-                        <div className=""></div>
-                      )}
+                    <div className="min-h-[60vh] break-words bg-white dark:bg-gray-900 rounded-md p-4 text-black dark:text-gray-200">
+                      <TicketDetailContent
+                        detail={data.ticket.detail}
+                        fromImap={data.ticket.fromImap}
+                      />
                     </div>
                   </div>
                 </div>

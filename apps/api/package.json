@@ -58,6 +58,7 @@
     "jsonwebtoken": "9.0.3",
     "lru-cache": "^11.2.4",
     "mailparser": "^3.9.1",
+    "marked": "^17.0.4",
     "nodemailer": "^7.0.12",
     "openid-client": "^6.8.1",
     "pg": "^8.16.3",

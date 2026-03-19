@@ -1,18 +1,20 @@
 import { toast } from "@/shadcn/hooks/use-toast";
 import { getCookie } from "cookies-next";
 import { useRouter } from "next/router";
-import { highlight, languages } from "prismjs";
-import "prismjs/components/prism-clike";
-import "prismjs/themes/prism.css";
 import { useEffect, useState } from "react";
-import Editor from "react-simple-code-editor";
+import dynamic from "next/dynamic";
+
+const RichHtmlEditor = dynamic(() => import("../../../../components/RichHtmlEditor"), { 
+  ssr: false,
+  loading: () => <div className="p-4 text-sm text-muted-foreground">Loading rich text editor...</div>
+});
 
 export default function EmailTemplates() {
   const [template, setTemplate] = useState<any>();
 
   const router = useRouter();
 
-  const [code, setCode] = useState(`function add(a, b) {\n  return a + b;\n}`);
+
 
   async function fetchTemplate() {
     await fetch(`/api/v1/ticket/template/${router.query.id}`, {
@@ -40,7 +42,13 @@ export default function EmailTemplates() {
       },
       body: JSON.stringify({ html: template }),
     })
-      .then((response) => response.json())
+      .then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+        }
+        return response.json();
+      })
       .then((data) => {
         if (data.success) {
           toast({
@@ -48,13 +56,29 @@ export default function EmailTemplates() {
             title: "Success",
             description: `Template updated`,
           });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "API Error",
+            description: data.message || "Template update failed",
+          });
         }
+      })
+      .catch((error) => {
+        console.error("Update failed:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message,
+        });
       });
   }
 
   useEffect(() => {
-    fetchTemplate();
-  }, []);
+    if (router.query.id) {
+      fetchTemplate();
+    }
+  }, [router.query.id]);
 
   return (
     <div>
@@ -67,28 +91,13 @@ export default function EmailTemplates() {
           Update Template
         </button>
       </div>
-      <div className="flex flex-row">
-        <div className="w-1/2 overflow-scroll">
-          {template !== undefined && (
-            <Editor
-              value={template}
-              onValueChange={(code) => setTemplate(code)}
-              highlight={(code) => highlight(code, languages.js, "html")}
-              padding={10}
-              style={{
-                fontFamily: '"Fira code", "Fira Mono", monospace',
-                fontSize: 12,
-                overflow: "scroll",
-              }}
-              textareaClassName="overflow-scroll"
-            />
-          )}
-        </div>
-        <div className="w-1/2">
-          <span>
-            <div dangerouslySetInnerHTML={{ __html: template }} />
-          </span>
-        </div>
+      <div className="flex flex-col mt-4">
+        {template !== undefined && (
+          <RichHtmlEditor
+            initialHtml={template}
+            onChange={(html) => setTemplate(html)}
+          />
+        )}
       </div>
     </div>
   );

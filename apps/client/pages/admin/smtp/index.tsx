@@ -38,6 +38,18 @@ export default function Notifications() {
   const [config, setConfig] = useState();
   const [error, setError]: any = useState();
   const [templates, setTemplates] = useState([]);
+  const [newTemplateType, setNewTemplateType] = useState("");
+
+  const ALL_TEMPLATE_TYPES = [
+    "ticket_created",
+    "ticket_status_changed",
+    "ticket_assigned",
+    "ticket_comment",
+  ];
+
+  const missingTemplateTypes = ALL_TEMPLATE_TYPES.filter(
+    (type) => !templates.some((t: any) => t.type === type)
+  );
 
   async function deleteEmailConfig() {
     setLoading(true);
@@ -109,6 +121,39 @@ export default function Notifications() {
       .then(() => setLoading(false));
   }
 
+  async function createTemplate() {
+    if (!newTemplateType) return;
+    
+    await fetch("/api/v1/ticket/template", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getCookie("session")}`,
+      },
+      body: JSON.stringify({
+        type: newTemplateType,
+        html: `<h1>New ${newTemplateType.replace("_", " ")} Template</h1><p>Edit me!</p>`
+      })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          toast({
+            title: "Success",
+            description: data.message,
+          });
+          setNewTemplateType("");
+          fetchTemplates();
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: data.message,
+          });
+        }
+      });
+  }
+
   useEffect(() => {
     fetchEmailConfig();
   }, []);
@@ -177,39 +222,6 @@ export default function Notifications() {
                           </button>
                         </div>
                       </div>
-
-                      <div className="mt-4">
-                        <h1>Email Templates</h1>
-                        <Table className="min-w-full">
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Type</TableHead>
-                              <TableHead>Subject</TableHead>
-                              <TableHead>Preview</TableHead>
-                              <TableHead />
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {templates.map((template) => (
-                              <TableRow key={template.id}>
-                                <TableCell>{template.type}</TableCell>
-                                <TableCell>{template.subject}</TableCell>
-                                <TableCell className="max-w-[420px] truncate text-muted-foreground">
-                                  {template.html}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <a
-                                    href={`/admin/smtp/templates/${template.id}`}
-                                    className="text-sm font-semibold text-primary hover:underline"
-                                  >
-                                    Edit
-                                  </a>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
                     </div>
                   ) : (
                     <div>
@@ -264,6 +276,78 @@ export default function Notifications() {
                       </div>
                     </div>
                   )}
+                  <div className="mt-8">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-bold">Email Templates</h2>
+                    </div>
+                    {templates.length > 0 ? (
+                      <Table className="min-w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Subject</TableHead>
+                            <TableHead>Preview</TableHead>
+                            <TableHead />
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {templates.map((template: any) => (
+                            <TableRow key={template.id}>
+                              <TableCell>{template.type}</TableCell>
+                              <TableCell>{template.subject}</TableCell>
+                              <TableCell className="max-w-[420px] truncate text-muted-foreground">
+                                {template.html}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <a
+                                  href={`/admin/smtp/templates/${template.id}`}
+                                  className="text-sm font-semibold text-primary hover:underline"
+                                >
+                                  Edit
+                                </a>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No templates found.
+                      </p>
+                    )}
+
+                    {missingTemplateTypes.length > 0 && (
+                      <div className="mt-6 flex flex-col gap-2 p-4 bg-muted/20 border rounded-md">
+                        <Label>Create Missing Template</Label>
+                        <div className="flex gap-4 items-center">
+                          <div className="w-64">
+                            <Select
+                              value={newTemplateType}
+                              onValueChange={setNewTemplateType}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select template type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {missingTemplateTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={!newTemplateType}
+                            onClick={createTemplate}
+                          >
+                            Create Template
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <>

@@ -1465,6 +1465,63 @@ export function ticketRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST create a new template
+  fastify.post(
+    "/api/v1/ticket/template",
+    {
+      preHandler: requirePermission(["email_template::manage"]),
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            type: { type: "string" },
+            html: { type: "string" },
+          },
+          required: ["type", "html"],
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              message: { type: "string" },
+              template: { type: "object", additionalProperties: true },
+            },
+            additionalProperties: true,
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { type, html }: any = request.body;
+
+      // Ensure the type is one of the valid enums
+      const existing = await prisma.emailTemplate.findFirst({
+        where: { type: type },
+      });
+
+      if (existing) {
+        return reply.status(400).send({
+          success: false,
+          message: "A template of this type already exists",
+        });
+      }
+
+      const template = await prisma.emailTemplate.create({
+        data: {
+          type: type,
+          html: html,
+        },
+      });
+
+      reply.send({
+        success: true,
+        message: "Template created successfully",
+        template: template,
+      });
+    }
+  );
+
   // Get all open tickets for an external user
   fastify.get(
     "/api/v1/tickets/user/open/external",

@@ -107,7 +107,9 @@ export function clientRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/v1/clients/all",
     {
-      preHandler: requirePermission(["client::read"]),
+      // Allow either explicit client read permission OR ticket transfer permission
+      // (needed for assigning clients to tickets).
+      preHandler: requirePermission(["client::read", "issue::transfer"], false),
       schema: {
         response: {
           200: {
@@ -125,6 +127,43 @@ export function clientRoutes(fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
+      // Best-effort backfill: ensure every external user has a matching Client row,
+      // so existing portal users appear in the admin client list.
+      const [existingClients, externalUsers] = await Promise.all([
+        prisma.client.findMany({ select: { email: true } }),
+        prisma.user.findMany({
+          where: { external_user: true },
+          select: { email: true, name: true },
+        }),
+      ]);
+
+      const existingEmails = new Set(
+        existingClients
+          .map((c) => String(c.email || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      for (const u of externalUsers) {
+        const email = String(u.email || "").trim().toLowerCase();
+        if (!email || existingEmails.has(email)) continue;
+        const displayName =
+          (u.name && u.name.trim().length > 0
+            ? u.name.trim()
+            : email.split("@")[0]) || "Customer";
+        try {
+          await prisma.client.create({
+            data: {
+              email,
+              name: displayName,
+              contactName: displayName,
+            },
+          });
+          existingEmails.add(email);
+        } catch {
+          // ignore races/unique conflicts
+        }
+      }
+
       const clients = await prisma.client.findMany({});
 
       reply.send({
@@ -161,9 +200,29 @@ export function clientRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id }: any = request.params;
 
-      await prisma.client.delete({
-        where: { id: id },
+      const client = await prisma.client.findUnique({
+        where: { id },
+        select: { email: true },
       });
+
+      if (client?.email) {
+        const email = String(client.email).trim().toLowerCase();
+
+        // Best-effort: delete any external users with the same email and their sessions/notifications.
+        const externalUsers = await prisma.user.findMany({
+          where: { email, external_user: true },
+          select: { id: true },
+        });
+
+        for (const u of externalUsers) {
+          await prisma.notes.deleteMany({ where: { userId: u.id } });
+          await prisma.session.deleteMany({ where: { userId: u.id } });
+          await prisma.notifications.deleteMany({ where: { userId: u.id } });
+          await prisma.user.delete({ where: { id: u.id } });
+        }
+      }
+
+      await prisma.client.delete({ where: { id } });
 
       reply.send({
         success: true,

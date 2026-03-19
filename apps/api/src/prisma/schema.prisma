@@ -349,6 +349,19 @@ model knowledgeBase {
   ticket   Ticket? @relation(fields: [ticketId], references: [id])
 }
 
+model KnowledgeBaseBranding {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  siteName    String  @default("Knowledge Base")
+  title       String  @default("Help Center")
+  subtitle    String  @default("Search curated guides, troubleshooting checklists, and step-by-step workflows. Articles here are written by the team and updated with every release.")
+  logoUrl     String?
+  faviconUrl  String?
+  accentColor String  @default("#14b8a6")
+}
+
 model Imap_Email {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())

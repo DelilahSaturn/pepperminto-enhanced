@@ -116,7 +116,7 @@ export default function Notifications() {
                              type="button"
                              className={
                                show === "main"
-                                 ? "rounded bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                 ? "rounded bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-accent"
                                  : "hidden"
                              }
                            >
@@ -128,7 +128,7 @@ export default function Notifications() {
                              className={
                                show === "main"
                                  ? "hidden"
-                                 : "rounded bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                 : "rounded bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-accent"
                              }
                            >
                              Cancel
@@ -143,13 +143,13 @@ export default function Notifications() {
                           {data.webhooks.map((hook) => (
                             <div
                               key={hook.id}
-                              className="rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3"
+                              className="rounded-lg border border-border bg-background px-6 py-5 shadow-sm flex items-center space-x-3"
                             >
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground">
                                   {hook.name}
                                 </p>
-                                <p className="text-sm text-foreground truncate">
+                                <p className="text-sm text-muted-foreground truncate">
                                   {hook.url} | {hook.type}
                                 </p>
                               </div>
@@ -190,7 +190,7 @@ export default function Notifications() {
                             type="text"
                             name="url"
                             id="url"
-                            className="shadow-sm bg-transparent text-foreground border focus:ring-green\-500 focus:border-green-500 block w-full sm:w-1/2 md:w-3/4 sm:text-sm border-gray-300 rounded-md"
+                            className="shadow-sm bg-transparent text-foreground border focus:ring-green-500 focus:border-green-500 block w-full sm:w-1/2 md:w-3/4 sm:text-sm border-border rounded-md"
                             required
                             onChange={(e) => setName(e.target.value)}
                           />
@@ -207,7 +207,7 @@ export default function Notifications() {
                             type="text"
                             name="url"
                             id="url"
-                            className="shadow-sm bg-transparent text-foreground border focus:ring-green\-500  focus:border-green-500 block w-full sm:w-1/2 md:w-3/4 sm:text-sm border-gray-300 rounded-md"
+                            className="shadow-sm bg-transparent text-foreground border focus:ring-green-500 focus:border-green-500 block w-full sm:w-1/2 md:w-3/4 sm:text-sm border-border rounded-md"
                             required
                             onChange={(e) => setUrl(e.target.value)}
                           />
@@ -223,7 +223,7 @@ export default function Notifications() {
                           <select
                             id="location"
                             name="location"
-                            className="mt-1 block w-full pl-3 pr-10 bg-transparent border py-2 text-foreground text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            className="mt-1 block w-full pl-3 pr-10 bg-transparent border py-2 text-foreground text-base border-border focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                             defaultValue="ticket_created"
                             onChange={(e) => setType(e.target.value)}
                           >

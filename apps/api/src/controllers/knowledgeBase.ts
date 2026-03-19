@@ -1,4 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 import { checkSession } from "../lib/session";
 import { prisma } from "../prisma";
 
@@ -54,7 +57,6 @@ async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
 }
 
 export function knowledgeBaseRoutes(fastify: FastifyInstance) {
-  // Public list
   fastify.get(
     "/api/v1/knowledge-base/public",
     {
@@ -116,7 +118,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Public article by slug
   fastify.get(
     "/api/v1/knowledge-base/public/:slug",
     {
@@ -143,7 +144,13 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { slug }: any = request.params;
       const article = await prisma.knowledgeBase.findFirst({
-        where: { slug: String(slug), public: true },
+        where: {
+          OR: [
+            { slug: String(slug) },
+            { id: String(slug) },
+          ],
+          public: true,
+        },
       });
 
       if (!article) {
@@ -157,7 +164,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Admin list
   fastify.get(
     "/api/v1/knowledge-base/all",
     {
@@ -191,7 +197,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Admin get by id
   fastify.get(
     "/api/v1/knowledge-base/:id",
     {
@@ -237,7 +242,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Admin create
   fastify.post(
     "/api/v1/knowledge-base",
     {
@@ -292,7 +296,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Admin update
   fastify.put(
     "/api/v1/knowledge-base/:id",
     {
@@ -356,7 +359,6 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Admin delete
   fastify.delete(
     "/api/v1/knowledge-base/:id",
     {
@@ -392,6 +394,179 @@ export function knowledgeBaseRoutes(fastify: FastifyInstance) {
       });
 
       reply.send({ success: true });
+    }
+  );
+
+  async function getOrCreateBranding() {
+    let branding = await prisma.knowledgeBaseBranding.findFirst();
+    if (!branding) {
+      branding = await prisma.knowledgeBaseBranding.create({ data: {} });
+    }
+    return branding;
+  }
+
+  fastify.get(
+    "/api/v1/knowledge-base/public/branding",
+    {
+      schema: {
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              branding: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+      },
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const branding = await getOrCreateBranding();
+      reply.send({ success: true, branding });
+    }
+  );
+
+  fastify.put(
+    "/api/v1/knowledge-base/branding",
+    {
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            siteName: { type: "string" },
+            title: { type: "string" },
+            subtitle: { type: "string" },
+            accentColor: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              branding: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = await requireAdmin(request, reply);
+      if (!user) return;
+
+      const { siteName, title, subtitle, accentColor }: any = request.body;
+      const existing = await getOrCreateBranding();
+
+      const data: any = {};
+      if (siteName !== undefined) data.siteName = siteName;
+      if (title !== undefined) data.title = title;
+      if (subtitle !== undefined) data.subtitle = subtitle;
+      if (accentColor !== undefined) data.accentColor = accentColor;
+
+      const branding = await prisma.knowledgeBaseBranding.update({
+        where: { id: existing.id },
+        data,
+      });
+
+      reply.send({ success: true, branding });
+    }
+  );
+
+  const uploadsBaseDir =
+    process.env.UPLOADS_DIR?.trim() ||
+    path.join(process.cwd(), "uploads");
+
+  fastify.post(
+    "/api/v1/knowledge-base/branding/upload/:field",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            field: { type: "string", enum: ["logo", "favicon"] },
+          },
+          required: ["field"],
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              url: { type: "string" },
+              branding: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = await requireAdmin(request, reply);
+      if (!user) return;
+
+      const { field } = request.params as { field: "logo" | "favicon" };
+      const part: any = await (request as any).file?.();
+      if (!part) {
+        return reply.code(400).send({ success: false, message: "Missing file" });
+      }
+
+      const brandingDir = path.join(uploadsBaseDir, "branding");
+      if (!fs.existsSync(brandingDir)) {
+        fs.mkdirSync(brandingDir, { recursive: true });
+      }
+
+      const ext = path.extname(part.filename || "").toLowerCase() || ".png";
+      const safeId = crypto.randomUUID();
+      const filename = `${field}-${safeId}${ext}`;
+      const absPath = path.join(brandingDir, filename);
+
+      await new Promise<void>((resolve, reject) => {
+        const out = fs.createWriteStream(absPath);
+        part.file.on("error", reject);
+        out.on("error", reject);
+        out.on("finish", resolve);
+        part.file.pipe(out);
+      });
+
+      const publicUrl = `/api/v1/knowledge-base/public/branding/asset/${filename}`;
+      const existing = await getOrCreateBranding();
+      const data: any = {};
+      if (field === "logo") data.logoUrl = publicUrl;
+      if (field === "favicon") data.faviconUrl = publicUrl;
+
+      const branding = await prisma.knowledgeBaseBranding.update({
+        where: { id: existing.id },
+        data,
+      });
+
+      reply.send({ success: true, url: publicUrl, branding });
+    }
+  );
+
+  fastify.get(
+    "/api/v1/knowledge-base/public/branding/asset/:filename",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { filename } = request.params as { filename: string };
+      const safe = path.basename(filename);
+      const absPath = path.join(uploadsBaseDir, "branding", safe);
+
+      if (!fs.existsSync(absPath)) {
+        return reply.code(404).send({ success: false, message: "Not found" });
+      }
+
+      const ext = path.extname(safe).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".webp": "image/webp",
+      };
+
+      reply.header("Content-Type", mimeMap[ext] || "application/octet-stream");
+      reply.header("Cache-Control", "public, max-age=86400");
+      return reply.send(fs.createReadStream(absPath));
     }
   );
 }

@@ -74,7 +74,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: any) {
     );
   }
 
-  if (router.pathname.includes("/settings")) {
+  if (router.asPath.includes("/settings") && !router.asPath.includes("/portal")) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <SessionProvider>
@@ -96,7 +96,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: any) {
     );
   }
 
-  if (router.pathname.startsWith("/portal")) {
+  if (router.asPath.includes("/portal")) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <SessionProvider>

@@ -31,7 +31,7 @@ export default function UserProfile() {
 
   const router = useRouter();
 
-  const [name, setName] = useState(user.name);
+  const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user.email);
   const [language, setLanguage] = useState(user.language);
 
@@ -51,7 +51,8 @@ export default function UserProfile() {
       },
       body: JSON.stringify({
         id: user.id,
-        name: name ? name : user.name,
+        // If name is blank, fall back to email so clients always have a display name
+        name: name && String(name).trim().length > 0 ? name : user.email,
         email: email ? email : user.email,
         language: language ? language : user.language,
       }),

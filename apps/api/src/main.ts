@@ -1,9 +1,10 @@
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import "dotenv/config";
+import bcrypt from "bcrypt";
 import Fastify, { FastifyInstance } from "fastify";
-import multer from "fastify-multer";
 import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -57,7 +58,8 @@ function isPublicRoute(url: string) {
     // Allow slight variations (trailing slashes, query strings) for known public endpoints
     normalized.startsWith("/api/v1/auth/user/register/external") ||
     normalized.startsWith("/docs/") ||
-    normalized.startsWith("/api/v1/knowledge-base/public")
+    normalized.startsWith("/api/v1/knowledge-base/public") ||
+    normalized.startsWith("/api/v1/storage/public/")
   );
 }
 
@@ -117,7 +119,12 @@ server.register(async (app) => {
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   });
 
-  app.register(multer.contentParser);
+  app.register(multipart, {
+    limits: {
+      // 50MB per file by default; adjust if you want bigger
+      fileSize: 50 * 1024 * 1024,
+    },
+  });
 
   registerRoutes(app);
 
@@ -148,8 +155,27 @@ server.register(async (app) => {
       if (isPublicRoute(request.url)) {
         return true;
       }
-      const bearer = request.headers.authorization!.split(" ")[1];
-      checkToken(bearer);
+      const bearer = request.headers.authorization?.split(" ")[1];
+
+      // Allow cookie-based auth for same-origin browser requests (e.g. images/downloads)
+      const cookieHeader = request.headers.cookie || "";
+      const cookieMatch = cookieHeader
+        .split(";")
+        .map((v: string) => v.trim())
+        .find((v: string) => v.startsWith("session="));
+      const cookieToken = cookieMatch
+        ? decodeURIComponent(cookieMatch.slice("session=".length))
+        : null;
+
+      const token = bearer || cookieToken;
+      if (!token) {
+        throw new Error("missing token");
+      }
+
+      // Normalize so downstream handlers that read Authorization still work
+      request.headers.authorization = `Bearer ${token}`;
+
+      checkToken(token);
     } catch (err) {
       reply.status(401).send({
         message: "Unauthorized",
@@ -259,6 +285,47 @@ const start = async () => {
     // connect to database
     await prisma.$connect();
     server.log.info("Connected to Prisma");
+
+    // Ensure a config row exists (fresh DBs may not have one).
+    const existingConfig = await prisma.config.findFirst();
+    if (!existingConfig) {
+      await prisma.config.create({
+        data: {
+          sso_active: false,
+          roles_active: false,
+          feature_previews: false,
+          first_time_setup: true,
+        },
+      });
+      server.log.info("Created default config row");
+    }
+
+    // Bootstrap default admin user for fresh installs.
+    // If no admin exists yet, we create one so users can log in immediately.
+    // Not configurable via env (to avoid leaking credentials via environment/config).
+    const initEmail = "admin@admin.com";
+    const initPassword = "1234";
+    const initName = "Admin";
+
+    const adminCount = await prisma.user.count({ where: { isAdmin: true } });
+    if (adminCount === 0) {
+      const existing = await prisma.user.findUnique({
+        where: { email: initEmail },
+      });
+      if (!existing) {
+        await prisma.user.create({
+          data: {
+            email: initEmail,
+            name: initName,
+            password: await bcrypt.hash(initPassword, 10),
+            isAdmin: true,
+            external_user: false,
+            firstLogin: true,
+          },
+        });
+        server.log.info(`Bootstrapped initial admin user: ${initEmail}`);
+      }
+    }
 
     server.listen(
       { port: 3001, host: "0.0.0.0" },

@@ -11,6 +11,32 @@ const BASE_URL = process.env.BASE_URL || "https://pepperminto.dev";
 const DASHBOARD_URL =
   process.env.DASHBOARD_URL || "https://dashboard.demo.pepperminto.dev";
 
+type Branding = {
+  siteName: string;
+  title: string;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
+  accentColor: string;
+};
+
+async function getBranding(): Promise<Branding> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/v1/knowledge-base/public/branding`,
+      { cache: "no-store" }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.branding) return data.branding;
+    }
+  } catch {}
+  return {
+    siteName: "Knowledge Base",
+    title: "Help Center",
+    accentColor: "#14b8a6",
+  };
+}
+
 type Article = {
   title: string;
   slug: string;
@@ -18,6 +44,7 @@ type Article = {
   author: string;
   content: string;
   updatedAt: string;
+  public?: boolean;
 };
 
 type BlockContent = {
@@ -58,6 +85,10 @@ function formatDate(value: string) {
   });
 }
 
+function formatTags(tags: string[] | null | undefined) {
+  return Array.isArray(tags) && tags.length > 0 ? tags.join(", ") : "";
+}
+
 function extractTextFromBlock(block: BlockNode): string {
   const contentText = (block.content || [])
     .map((child) => (child.text ? child.text : ""))
@@ -92,29 +123,33 @@ export default async function ArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  const [article, branding] = await Promise.all([getArticle(slug), getBranding()]);
   if (!article) {
     notFound();
   }
 
   const markdown = normalizeToMarkdown(article.content);
-  const html = renderMarkdownToHtml(markdown);
+  const html = renderMarkdownToHtml(markdown || "");
 
   return (
     <div className="min-h-screen bg-grid text-slate-900 dark:text-slate-100">
       <header className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-8">
         <Link href="/" className="flex items-center gap-3">
-          <span className="text-2xl">🍵</span>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt="" className="h-8 max-w-[160px] object-contain" />
+          ) : (
+            <span className="text-2xl">🍵</span>
+          )}
           <span className="text-lg font-semibold tracking-wide">
-            Pepperminto Help Center
+            {branding.title}
           </span>
         </Link>
-        <div className="hidden items-center gap-4 text-sm text-slate-600 dark:text-slate-300 md:flex">
+        <div className="hidden items-center gap-4 text-sm text-slate-400 md:flex">
           <Link href="/" className="hover:text-slate-900 dark:hover:text-white">
             Back to all articles
           </Link>
           <CreateTicketModal
-            buttonClassName="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-teal-500 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
+            buttonClassName="rounded-full border border-slate-800/70 bg-slate-950/60 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-teal-500 hover:text-teal-200"
           />
           <Link href={BASE_URL} className="hover:text-slate-900 dark:hover:text-white">
             Main site
@@ -126,24 +161,31 @@ export default async function ArticlePage({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl px-6 pb-16">
-        <article className="rounded-3xl border border-slate-200 bg-white/80 px-8 py-10 shadow-2xl shadow-teal-500/10 dark:border-slate-800 dark:bg-slate-950/70">
-          <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.3em] text-teal-700 dark:text-teal-300">
-            {(article.tags || []).length > 0
-              ? article.tags.join(" • ")
-              : "General"}
+      <main className="mx-auto w-full max-w-5xl px-4 pb-16 sm:px-6 md:px-8">
+        <article className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6 shadow-sm backdrop-blur">
+          <div>
+            <h1 className="text-3xl font-extrabold text-foreground">
+              {article.title || "Untitled article"}
+            </h1>
+            <div className="mt-2 text-sm text-slate-400">
+              {article.author ? <span>By {article.author}</span> : null}
+              {article.author && (article.tags?.length || article.public !== undefined) ? (
+                <span className="mx-2">•</span>
+              ) : null}
+              {formatTags(article.tags) ? <span>{formatTags(article.tags)}</span> : null}
+              {formatTags(article.tags) && article.public !== undefined ? (
+                <span className="mx-2">•</span>
+              ) : null}
+              <span>{article.public ? "Published" : "Draft"}</span>
+            </div>
           </div>
-          <h1 className="mt-4 text-4xl font-semibold text-slate-900 md:text-5xl dark:text-white">
-            {article.title}
-          </h1>
-          <p className="mt-4 text-sm uppercase tracking-[0.3em] text-slate-500">
-            Updated {formatDate(article.updatedAt)} · {article.author}
-          </p>
 
-          <div
-            className="mt-8 prose prose-slate max-w-none text-base leading-7 dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div className="mt-6 rounded-xl border border-slate-800/70 bg-slate-950/40 p-5">
+            <div
+              className="prose prose-sm max-w-none dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
         </article>
       </main>
     </div>

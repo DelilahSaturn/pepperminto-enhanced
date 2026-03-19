@@ -27,7 +27,8 @@ export default function Login({}) {
         .then((res) => res.json())
         .then(async (res) => {
           if (res.user) {
-            setCookie("session", res.token);
+            // Ensure cookie is sent to /api/* as well as /dashboard/*
+            setCookie("session", res.token, { path: "/" });
             if (res.user.external_user) {
               router.push("/portal");
             } else {
@@ -191,11 +192,11 @@ export default function Login({}) {
             Built with 💚 by Pepperminto Labs
           </span>
           <a
-            href={process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}
+            href={process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}
             target="_blank"
             className="text-foreground"
           >
-            Documentation
+            Help Center
           </a>
         </div>
       </div>

@@ -102,8 +102,8 @@ export function UserCombo({
                 {value.map((val) => (
                   <CommandItem
                     className=" hover:cursor-pointer"
-                    key={val.value}
-                    value={val}
+                    key={val.id ?? val.value ?? val.name}
+                    value={val.name}
                     onSelect={(selected) => {
                       const user = value.find((k) => k.name === selected);
                       setSelectedStatus(user);
@@ -133,8 +133,6 @@ export function IconCombo({
   const [open, setOpen] = React.useState(false);
   const [selectedStatus, setSelectedStatus] = React.useState<any | null>(null);
   const defaultStatus = value.find((k) => k.value === defaultName);
-
-  console.log(disabled);
 
   return (
     <div className="flex items-center space-x-4">
@@ -191,11 +189,13 @@ export function IconCombo({
                   <CommandItem
                     className=" hover:cursor-pointer"
                     key={val.value}
-                    value={val}
+                    value={val.value}
                     onSelect={(selected) => {
-                      const user = value.find((k) => k.name === selected);
-                      setSelectedStatus(user);
-                      update(user);
+                      const match = value.find(
+                        (k) => k.value.toLowerCase() === selected.toLowerCase()
+                      );
+                      setSelectedStatus(match);
+                      update(match);
                       setOpen(false);
                     }}
                   >
@@ -229,6 +229,7 @@ export function ClientCombo({
 }) {
   const [open, setOpen] = React.useState(false);
   const [selectedStatus, setSelectedStatus] = React.useState<any | null>(null);
+  const items = Array.isArray(value) ? value : [];
 
   return (
     <div className="flex items-center space-x-4">
@@ -294,13 +295,13 @@ export function ClientCombo({
                     /> */}
                   <span>Unassign</span>
                 </CommandItem>
-                {value.map((val) => (
+                {items.map((val) => (
                   <CommandItem
                     className=" hover:cursor-pointer"
-                    key={val.value}
-                    value={val}
+                    key={val.id ?? val.value ?? val.name}
+                    value={val.name}
                     onSelect={(selected) => {
-                      const user = value.find((k) => k.name === selected);
+                      const user = items.find((k) => k.name === selected);
                       setSelectedStatus(user);
                       update(user);
                       setOpen(false);

@@ -27,6 +27,12 @@ const defaultFlags: FeatureFlag[] = [
     description: "Hide email field in create a new issue",
     flagKey: "email_hide", // Added flag key for this feature
   },
+  {
+    name: "Enter to Send in Tickets",
+    enabled: false,
+    description: "Press Enter to send messages in ticket conversations (Shift+Enter for newline).",
+    flagKey: "ticket_enter_to_send", // stored as localStorage key
+  },
 ];
 
 export default function FeatureFlags() {

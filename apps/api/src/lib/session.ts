@@ -6,27 +6,37 @@ import { prisma } from "../prisma";
 export async function checkSession(request: FastifyRequest) {
   try {
     const bearer = request.headers.authorization?.split(" ")[1];
-    if (!bearer) {
-      return null;
-    }
+
+    // Fallback: allow cookie-based session for same-origin requests (e.g. clicking attachment links)
+    const cookieHeader = request.headers.cookie || "";
+    const cookieMatch = cookieHeader
+      .split(";")
+      .map((v) => v.trim())
+      .find((v) => v.startsWith("session="));
+    const cookieToken = cookieMatch
+      ? decodeURIComponent(cookieMatch.slice("session=".length))
+      : null;
+
+    const token = bearer || cookieToken;
+    if (!token) return null;
 
     // Verify JWT token is valid
     var b64string = process.env.SECRET;
     var secret = Buffer.from(b64string!, "base64");
 
     try {
-      jwt.verify(bearer, secret);
+      jwt.verify(token, secret);
     } catch (e) {
       // Token is invalid or expired
       await prisma.session.delete({
-        where: { sessionToken: bearer },
+        where: { sessionToken: token },
       });
       return null;
     }
 
     // Check if session exists and is not expired
     const session = await prisma.session.findUnique({
-      where: { sessionToken: bearer },
+      where: { sessionToken: token },
       include: { user: true },
     });
 

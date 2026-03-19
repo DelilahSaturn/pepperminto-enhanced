@@ -203,6 +203,13 @@ export default function Clients() {
   const router = useRouter();
 
   async function deleteClient(id: any) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this client and their account? This cannot be undone."
+      )
+    ) {
+      return;
+    }
     await fetch(`/api/v1/clients/${id}/delete-client`, {
       method: "DELETE",
       headers: {
@@ -223,9 +230,9 @@ export default function Clients() {
         id: "client_name",
       },
       {
-        header: "Contact Name",
-        accessorKey: "contactName",
-        id: "contactName",
+        header: "Email",
+        accessorKey: "email",
+        id: "email",
       },
       {
         header: "",
@@ -334,7 +341,7 @@ export default function Clients() {
                           </h3>
                           <dl className="mt-1 flex-grow flex flex-col justify-between">
                             <dd className="text-gray-500 text-sm">
-                              {client.number}
+                              {client.email}
                             </dd>
                             <dt className="sr-only">Role</dt>
                             <dd className="mt-3">

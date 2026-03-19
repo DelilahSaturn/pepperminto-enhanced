@@ -228,4 +228,55 @@ export function userRoutes(fastify: FastifyInstance) {
       });
     }
   );
+
+  // Mark all notifications for a ticket as read for the current user
+  fastify.post(
+    "/api/v1/user/notifications/ticket/read",
+    {
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            ticketId: { type: "string" },
+          },
+          required: ["ticketId"],
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+            },
+            additionalProperties: true,
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { ticketId }: any = request.body;
+      const session = await checkSession(request);
+
+      if (!session) {
+        return reply.code(401).send({
+          message: "Unauthorized",
+          success: false,
+        });
+      }
+
+      await prisma.notifications.updateMany({
+        where: {
+          userId: session.id,
+          ticketId,
+          read: false,
+        },
+        data: {
+          read: true,
+        },
+      });
+
+      reply.send({
+        success: true,
+      });
+    }
+  );
 }

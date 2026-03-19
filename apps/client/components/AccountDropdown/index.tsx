@@ -38,6 +38,10 @@ export function AccountDropdown() {
   const { user } = useUser();
 
   const router = useRouter();
+  const githubRepoUrl = "https://github.com/DelilahSaturn/pepperminto";
+  const supportUrl = user?.external_user
+    ? "https://github.com/DelilahSaturn/pepperminto/issues"
+    : "https://github.com/DelilahSaturn/pepperminto/issues";
 
   async function logout() {
     const res = await fetch(`/api/v1/auth/user/${user.id}/logout`, {
@@ -62,7 +66,7 @@ export function AccountDropdown() {
           size="sm"
           className="h-9 border-border/60 bg-background/70 px-3 text-foreground shadow-sm backdrop-blur hover:bg-accent hover:text-accent-foreground"
         >
-          {user.name}
+          {user?.name && String(user.name).trim().length > 0 ? user.name : user?.email}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56 mr-4">
@@ -71,14 +75,24 @@ export function AccountDropdown() {
         <DropdownMenuGroup>
           <DropdownMenuItem
             className="hover:cursor-pointer"
-            onClick={() => router.push("/profile")}
+            onClick={() =>
+              router.push(
+                user?.external_user ? "/portal/profile" : "/profile"
+              )
+            }
           >
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             className="hover:cursor-pointer"
-            onClick={() => router.push("/settings/notifications")}
+            onClick={() =>
+              router.push(
+                user?.external_user
+                  ? "/portal/settings/notifications"
+                  : "/settings/notifications"
+              )
+            }
           >
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
@@ -127,16 +141,14 @@ export function AccountDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="hover:cursor-pointer"
-          onClick={() =>
-            router.push("https://github.com/nulldoubt/Pepperminto")
-          }
+          onClick={() => router.push(githubRepoUrl)}
         >
           <Github className="mr-2 h-4 w-4" />
           <span>GitHub</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           className="hover:cursor-pointer"
-          onClick={() => router.push("https://discord.gg/XDxnWxCqnc")}
+          onClick={() => router.push(supportUrl)}
         >
           <LifeBuoy className="mr-2 h-4 w-4" />
           <span>Support</span>

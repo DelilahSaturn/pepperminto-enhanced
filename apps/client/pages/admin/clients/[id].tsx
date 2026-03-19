@@ -11,17 +11,14 @@ export default function EditClientPage() {
   const [saving, setSaving] = useState(false);
 
   const [id, setId] = useState<string | null>(null);
-  const [number, setNumber] = useState("");
-  const [contactName, setContactName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [contactMethod, setContactMethod] = useState("");
+  const [sendingReset, setSendingReset] = useState(false);
+  const [copyingReset, setCopyingReset] = useState(false);
 
   const isEnabled =
-    number.length > 0 &&
-    contactName.length > 0 &&
-    name.length > 0 &&
-    email.length > 0 &&
-    !!id;
+    name.length > 0 && email.length > 0 && !!id;
 
   useEffect(() => {
     async function fetchClient() {
@@ -60,8 +57,9 @@ export default function EditClientPage() {
       setId(client.id);
       setName(client.name || "");
       setEmail(client.email || "");
-      setContactName(client.contactName || "");
-      setNumber(client.number || "");
+      setContactMethod(
+        client.number || client.contactName || ""
+      );
       setLoading(false);
     }
 
@@ -79,10 +77,10 @@ export default function EditClientPage() {
       },
       body: JSON.stringify({
         id,
-        number,
-        contactName,
         name,
         email,
+        number: contactMethod,
+        contactName: contactMethod,
       }),
     }).then((r) => r.json());
 
@@ -101,6 +99,119 @@ export default function EditClientPage() {
         title: "Error",
         description: res.message || "Whoops! please wait and try again! 🤥",
       });
+    }
+  }
+
+  async function sendPasswordReset() {
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Missing email",
+        description: "Client must have an email address to send a reset link.",
+      });
+      return;
+    }
+    setSendingReset(true);
+    try {
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.BASE_URL || "";
+      const link = `${origin}/auth/reset-password`;
+      const res = await fetch(`/api/v1/auth/password-reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, link }),
+      }).then((r) => r.json());
+
+      if (res.success) {
+        toast({
+          variant: "default",
+          title: "Password reset email sent",
+          description: "The client will receive an email with reset instructions.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: res.message || "Unable to send reset email.",
+        });
+      }
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error sending reset email.",
+      });
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
+  async function copyPasswordResetLink() {
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Missing email",
+        description: "Client must have an email address to generate a reset link.",
+      });
+      return;
+    }
+    setCopyingReset(true);
+    try {
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.BASE_URL || "";
+      const link = `${origin}/auth/reset-password`;
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        toast({
+          variant: "default",
+          title: "Reset link copied",
+          description: "The password reset link has been copied to your clipboard.",
+        });
+      } else {
+        // Fallback for browsers that don't support navigator.clipboard
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = link;
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          const successful = document.execCommand("copy");
+          document.body.removeChild(textarea);
+
+          if (successful) {
+            toast({
+              variant: "default",
+              title: "Reset link copied",
+              description: "The password reset link has been copied to your clipboard.",
+            });
+          } else {
+            throw new Error("execCommand failed");
+          }
+        } catch {
+          toast({
+            variant: "destructive",
+            title: "Unable to copy",
+            description:
+              "We couldn't access the clipboard. Please copy the link from the address bar instead.",
+          });
+        }
+      }
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error copying reset link.",
+      });
+    } finally {
+      setCopyingReset(false);
     }
   }
 
@@ -151,33 +262,43 @@ export default function EditClientPage() {
 
                             <input
                               type="text"
-                              className="shadow-sm text-foreground bg-transparent focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              placeholder="Enter client primary contact name here..."
-                              value={contactName}
-                              onChange={(e) => setContactName(e.target.value)}
-                            />
-
-                            <input
-                              type="text"
                               className="shadow-sm  text-foreground bg-transparent focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              placeholder="Enter client primary contact number here..."
-                              value={number}
-                              onChange={(e) => setNumber(e.target.value)}
+                              placeholder="Enter preferred contact method (e.g. phone, Discord, etc.) (optional)..."
+                              value={contactMethod}
+                              onChange={(e) => setContactMethod(e.target.value)}
                             />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                    <button
-                      type="button"
-                      disabled={!isEnabled || saving}
-                      className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
-                      onClick={updateClient}
-                    >
-                      {saving ? "Saving..." : "Save changes"}
-                    </button>
+                  <div className="mt-5 sm:mt-4 sm:flex sm:items-center sm:justify-between">
+                    <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0">
+                      <button
+                        type="button"
+                        disabled={!isEnabled || saving}
+                        className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        onClick={updateClient}
+                      >
+                        {saving ? "Saving..." : "Save changes"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={sendingReset || !email}
+                        className="inline-flex justify-center rounded-md border border-primary/40 bg-background px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-primary/10 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
+                        onClick={sendPasswordReset}
+                      >
+                        {sendingReset ? "Sending reset link..." : "Send password reset link"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={copyingReset || !email}
+                        className="inline-flex justify-center rounded-md border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-accent/40 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
+                        onClick={copyPasswordResetLink}
+                      >
+                        {copyingReset ? "Copying..." : "Copy reset link"}
+                      </button>
+                    </div>
                   </div>
                 </>
               )}

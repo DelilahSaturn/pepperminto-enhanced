@@ -81,6 +81,29 @@ export default function CreateTicket() {
   }
 
   async function createTicket() {
+    const trimmedTitle = title.trim();
+    const trimmedDetail = String(issue || "").trim();
+    const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+
+    if (!trimmedTitle || !trimmedDetail || !trimmedEmail || !trimmedName) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Name, email, title and description are required.",
+      });
+      return;
+    }
+
+    if (!trimmedEmail.includes("@")) {
+      toast({
+        variant: "destructive",
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+      });
+      return;
+    }
+
     await fetch(`/api/v1/ticket/create`, {
       method: "POST",
       headers: {
@@ -88,10 +111,10 @@ export default function CreateTicket() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        name,
-        title,
+        name: trimmedName,
+        title: trimmedTitle,
         company: companyId || undefined,
-        email,
+        email: trimmedEmail,
         detail: issue,
         priority,
         engineer: engineerId

@@ -33,8 +33,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../store/session";
 
-async function getUserTickets(token: any) {
-  const res = await fetch(`/api/v1/tickets/user/open`, {
+async function getOpenTickets(token: any) {
+  const res = await fetch(`/api/v1/tickets/open`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -69,8 +69,8 @@ export default function Tickets() {
 
   const token = getCookie("session");
   const { data, isLoading, isSuccess, refetch } = useQuery({
-    queryKey: ["allusertickets"],
-    queryFn: () => getUserTickets(token),
+    queryKey: ["all-open-tickets"],
+    queryFn: () => getOpenTickets(token),
     refetchInterval: 5000,
   });
 

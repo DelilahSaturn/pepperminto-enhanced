@@ -9,8 +9,9 @@ import { Label } from "@/shadcn/ui/label";
 export default function UpdateClientModal({ client }) {
   const [open, setOpen] = useState(false);
 
-  const [number, setNumber] = useState(client.number);
-  const [contactName, setContactName] = useState(client.contactName);
+  const [contactMethod, setContactMethod] = useState(
+    client.number || client.contactName
+  );
   const [name, setName] = useState(client.name);
   const [email, setEmail] = useState(client.email);
 
@@ -23,8 +24,8 @@ export default function UpdateClientModal({ client }) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        number,
-        contactName,
+        number: contactMethod,
+        contactName: contactMethod,
         name,
         email,
         id: client.id,
@@ -120,27 +121,14 @@ export default function UpdateClientModal({ client }) {
 
                       <div className="space-y-2">
                         <Label className="text-sm text-foreground">
-                          Primary contact name
+                          Contact method
                         </Label>
                         <Input
                           type="text"
                           className="bg-background/60"
-                          placeholder="Enter client primary contact name here..."
-                          onChange={(e) => setContactName(e.target.value)}
-                          value={contactName}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm text-foreground">
-                          Primary contact number
-                        </Label>
-                        <Input
-                          type="text"
-                          className="bg-background/60"
-                          placeholder="Enter client primary contact number here..."
-                          onChange={(e) => setNumber(e.target.value)}
-                          value={number}
+                          placeholder="Enter preferred contact method (e.g. phone, Discord, etc.)..."
+                          onChange={(e) => setContactMethod(e.target.value)}
+                          value={contactMethod}
                         />
                       </div>
                     </div>

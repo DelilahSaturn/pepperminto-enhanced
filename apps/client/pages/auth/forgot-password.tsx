@@ -110,11 +110,11 @@ export default function Login({}) {
             Built with 💚 by Pepperminto Labs
           </span>
           <a
-            href={process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}
+            href={process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}
             target="_blank"
             className="text-foreground"
           >
-            Documentation
+            Help Center
           </a>
         </div>
       </div>

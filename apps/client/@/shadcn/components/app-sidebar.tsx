@@ -170,13 +170,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               },
             ],
           },
-          {
-            title: "Admin",
-            url: "/admin",
-            icon: Settings,
-            isActive: true,
-            initial: "a",
-          },
+          ...(user.isAdmin
+            ? [
+                {
+                  title: "Admin",
+                  url: "/admin",
+                  icon: Settings,
+                  isActive: true,
+                  initial: "a",
+                },
+              ]
+            : []),
         ],
   };
 

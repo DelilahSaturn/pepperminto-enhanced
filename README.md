@@ -28,8 +28,6 @@ This is a fork of the original Peppermint project.
 - `apps/api` – Fastify API server
 - `apps/client` – Admin dashboard (Next.js)
 - `apps/knowledge-base` – Public knowledge base (Next.js)
-- `apps/docs` – Documentation site (Nextra)
-- `apps/landing-page` – Marketing landing page (Next.js)
 
 ## 🚀 Local development
 
@@ -42,56 +40,41 @@ Environment variables:
 
 - Copy `.env.example` to `.env` and adjust values as needed.
 
+Default admin (fresh database only):
+
+- Email: `admin@admin.com`
+- Password: `1234`
+
+You should log in and change these immediately.
+
 Default ports:
 
-- `knowledge-base` → `http://localhost:3000`
-- `api` → `http://localhost:3001`
-- `client` → `http://localhost:3002`
-- `docs` → `http://localhost:3003`
-- `landing-page` → `http://localhost:3004`
-
-## 📚 Documentation
-
-Run the docs locally with:
-
-```bash
-pnpm --filter docs dev
-```
-
-The docs are in `apps/docs/content` and the sidebar order is defined in `apps/docs/content/_meta.js`.
+- Public knowledge base → `http://localhost:3122/`
+- Dashboard → `http://localhost:3122/dashboard`
+- Dashboard KB (read-only) → `http://localhost:3122/dashboard/kb`
+- Admin → `http://localhost:3122/admin`
+- API (direct) → `http://localhost:3121`
 
 ## 🐳 Docker buildx commands
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -f apps/api/Dockerfile \
-  -t nulldoubt/pepperminto-api:latest \
-  --push .
+## 1) Build locally (no push)
+# Copy env and set SECRET before running
+cp .env.example .env
+docker compose build
+docker compose up -d
 
+## 2) Publish (single image)
+# This builds the combined `client` + `api` image from the repo-root Dockerfile.
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -f apps/client/Dockerfile \
-  -t nulldoubt/pepperminto-client:latest \
-  --push .
-
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -f apps/docs/Dockerfile \
-  -t nulldoubt/pepperminto-docs:latest \
-  --push .
-
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -f apps/knowledge-base/Dockerfile \
-  -t nulldoubt/pepperminto-knowledge-base:latest \
-  --push .
-
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -f apps/landing-page/Dockerfile \
-  -t nulldoubt/pepperminto-landing-page:latest \
+  -f Dockerfile \
+  -t delilahsaturn/pepperminto:latest \
   --push .
 ```
 
 ## Repo
 
-- Pepperminto fork: https://github.com/nulldoubt/Pepperminto
+- Pepperminto fork: https://github.com/DelilahSaturn/pepperminto
 
 ## License
 

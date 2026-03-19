@@ -30,7 +30,12 @@ export default function Home() {
   const [tickets, setTickets] = useState<any>();
 
   async function fetchTickets() {
-    await fetch(`/api/v1/tickets/user/open`, {
+    const endpoint =
+      user && user.external_user
+        ? "/api/v1/tickets/user/open/external"
+        : "/api/v1/tickets/user/open";
+
+    await fetch(endpoint, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -115,7 +120,7 @@ export default function Home() {
                             <TableRow
                               key={item.id}
                               className="hover:bg-accent/40 hover:cursor-pointer"
-                              onClick={() => router.push(`/issue/${item.id}`)}
+                              onClick={() => router.push(`/portal/issue/${item.id}`)}
                             >
                               <TableCell className="sm:max-w-[280px] 2xl:max-w-[720px] truncate px-4 py-1 text-sm font-medium text-gray-900 dark:text-white">
                                 {item.title}
@@ -127,19 +132,19 @@ export default function Home() {
                                 </dl>
                               </TableCell>
                               <TableCell className="hidden px-3 py-1 text-sm text-gray-500 lg:table-cell w-[64px]">
-                                {item.priority === "Low" && (
+                                {(item.priority?.toLowerCase() === "low" || item.priority === "Low") && (
                                   <span className="inline-flex w-full justify-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700  ring-1 ring-inset ring-blue-600/20">
-                                    {item.priority}
+                                    Low
                                   </span>
                                 )}
-                                {item.priority === "Normal" && (
+                                {(item.priority?.toLowerCase() === "normal" || item.priority?.toLowerCase() === "medium" || item.priority === "Normal") && (
                                   <span className="inline-flex items-center w-full justify-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                                    {"Medium"}
+                                    Medium
                                   </span>
                                 )}
-                                {item.priority === "High" && (
+                                {(item.priority?.toLowerCase() === "high" || item.priority === "High") && (
                                   <span className="inline-flex items-center w-full justify-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-                                    {item.priority}
+                                    High
                                   </span>
                                 )}
                               </TableCell>

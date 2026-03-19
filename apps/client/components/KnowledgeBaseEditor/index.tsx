@@ -10,8 +10,9 @@ import { Input } from "@/shadcn/ui/input";
 import { Label } from "@/shadcn/ui/label";
 import { Textarea } from "@/shadcn/ui/textarea";
 import { MarkdownEditor } from "../MarkdownEditor";
+import MarkdownRenderer from "../MarkdownRenderer";
 import { getCookie } from "cookies-next";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, Link2 } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -22,7 +23,16 @@ function toCsv(tags: string[] | null | undefined) {
   return Array.isArray(tags) ? tags.join(", ") : "";
 }
 
-export default function KnowledgeBaseEditor() {
+function slugify(value: string) {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+export default function KnowledgeBaseEditor({ kbBaseUrl: initialKbBaseUrl }: { kbBaseUrl?: string }) {
   const router = useRouter();
   const token = getCookie("session");
   const { user } = useUser();
@@ -160,16 +170,70 @@ export default function KnowledgeBaseEditor() {
     loading,
   ]);
 
-  if (!user?.isAdmin) {
+  const isAdminRoute = router.pathname.startsWith("/admin");
+
+  if (!isAdminRoute || !user?.isAdmin) {
+    if (loading) {
+      return <span>Loading content...</span>;
+    }
+
+    const kbBaseUrl = (initialKbBaseUrl || "").replace(/\/+$/, "");
+    const publicUrl = kbBaseUrl && router.query.id ? `${kbBaseUrl}/articles/${slug || router.query.id}` : "";
+
     return (
-      <div className="px-6 py-10">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Knowledge Base
-        </h1>
-        <p className="mt-2 text-sm text-foreground">
-          Admin access is required to manage knowledge base content.
-        </p>
-      </div>
+      <main className="flex-1">
+        <div className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6 md:px-8">
+          <div className="rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-extrabold text-foreground">
+                  {title || "Untitled article"}
+                </h1>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  {author ? <span>By {author}</span> : null}
+                  {author && (tags || published !== undefined) ? (
+                    <span className="mx-2">•</span>
+                  ) : null}
+                  {tags ? <span>{tags}</span> : null}
+                  {tags && published !== undefined ? (
+                    <span className="mx-2">•</span>
+                  ) : null}
+                  <span>{published ? "Published" : "Draft"}</span>
+                </div>
+              </div>
+              {publicUrl && (
+                <button
+                  type="button"
+                  title="Copy public link"
+                  className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  onClick={() => {
+                    if (navigator.clipboard && window.isSecureContext) {
+                      navigator.clipboard.writeText(publicUrl).then(() => {
+                        toast({
+                          title: "Link copied",
+                          description: publicUrl,
+                          duration: 3000,
+                        });
+                      }).catch((err) => {
+                         toast({ title: "Failed to copy", description: String(err), variant: "destructive" });
+                      });
+                    } else {
+                      toast({ title: "Public Link", description: publicUrl });
+                    }
+                  }}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Copy link
+                </button>
+              )}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-border/60 bg-background/50 p-5">
+              <MarkdownRenderer markdown={body || ""} />
+            </div>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -214,7 +278,13 @@ export default function KnowledgeBaseEditor() {
               <Label className="text-sm text-foreground">Title</Label>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  const newTitle = e.target.value;
+                  setTitle(newTitle);
+                  if (!slug || slug === slugify(title)) {
+                    setSlug(slugify(newTitle));
+                  }
+                }}
                 className="mt-2 bg-background/60"
               />
             </div>

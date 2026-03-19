@@ -167,10 +167,17 @@ export function authRoutes(fastify: FastifyInstance) {
         name: string;
         language: string;
       };
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const normalizedNameRaw = typeof name === "string" ? name.trim() : "";
+      const fallbackName =
+        normalizedEmail && normalizedEmail.includes("@")
+          ? normalizedEmail.split("@")[0]
+          : "Customer";
+      const normalizedName = normalizedNameRaw.length > 0 ? normalizedNameRaw : fallbackName;
 
       // Checks if email already exists
       let record = await prisma.user.findUnique({
-        where: { email },
+        where: { email: normalizedEmail },
       });
 
       // if exists, return 400
@@ -182,15 +189,35 @@ export function authRoutes(fastify: FastifyInstance) {
 
       const user = await prisma.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           password: await bcrypt.hash(password, 10),
-          name,
+          name: normalizedName,
           isAdmin: false,
           language,
           external_user: true,
           firstLogin: false,
         },
       });
+
+      // Auto-create a matching Client record so tickets can be linked/assigned.
+      // This is intentionally best-effort (ignore unique conflicts).
+      try {
+        await prisma.client.upsert({
+          where: { email: normalizedEmail },
+          create: {
+            email: normalizedEmail,
+            name: normalizedName,
+            contactName: normalizedName,
+            number: null,
+          },
+          update: {
+            name: normalizedName,
+            contactName: normalizedName,
+          },
+        });
+      } catch {
+        // client may already exist (email is unique)
+      }
 
       const hog = track();
 
@@ -930,16 +957,17 @@ export function authRoutes(fastify: FastifyInstance) {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      let session = await prisma.session.findUnique({
-        where: {
-          sessionToken: request.headers.authorization!.split(" ")[1],
-        },
-      });
+      const sessionUser = await checkSession(request);
 
-      await checkSession(request);
+      if (!sessionUser) {
+        return reply.code(401).send({
+          message: "Unauthorized",
+          success: false,
+        });
+      }
 
-      let user = await prisma.user.findUnique({
-        where: { id: session!.userId },
+      const user = await prisma.user.findUnique({
+        where: { id: sessionUser.id },
       });
 
       if (!user) {
@@ -957,18 +985,20 @@ export function authRoutes(fastify: FastifyInstance) {
         },
       });
 
+      const displayName = user!.name && user!.name.trim().length > 0 ? user!.name : user!.email;
+
       const data = {
         id: user!.id,
         email: user!.email,
-        name: user!.name,
+        name: displayName,
         isAdmin: user!.isAdmin,
         language: user!.language,
         ticket_created: user!.notify_ticket_created,
         ticket_status_changed: user!.notify_ticket_status_changed,
         ticket_comments: user!.notify_ticket_comments,
         ticket_assigned: user!.notify_ticket_assigned,
-        sso_status: config!.sso_active,
-        version: config!.client_version,
+        sso_status: config?.sso_active ?? false,
+        version: config?.client_version ?? null,
         notifcations,
         external_user: user!.external_user,
       };

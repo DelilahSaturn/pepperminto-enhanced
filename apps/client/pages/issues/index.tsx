@@ -34,7 +34,7 @@ export default function Tickets() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["allusertickets"],
     queryFn: () => getUserTickets(token),
-    refetchInterval: 5000,
+    refetchInterval: 3000,
   });
 
   // Custom hooks for managing state
@@ -122,7 +122,7 @@ export default function Tickets() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col flex-1 min-h-0 bg-background">
       <div className="py-2 px-3 bg-card/80 border-b border-border/60 flex flex-row items-center justify-between">
         <TicketFilters
           selectedPriorities={selectedPriorities}

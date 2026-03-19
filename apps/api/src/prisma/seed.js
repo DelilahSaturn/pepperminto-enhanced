@@ -83,7 +83,7 @@ async function main() {
                       <tbody>
                         <tr>
                           <td>
-                            <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}" rel="noopener noreferrer">Documentation</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
+                            <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}" rel="noopener noreferrer">Help Center</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
                             <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left">This was an automated message sent by ${process.env.BASE_URL ?? "https://pepperminto.dev"} -> An open source helpdesk solution</p>
                             <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left;margin-bottom:50px">©2022 Pepperminto Ticket Management, a Pepperminto Labs product.<br />All rights reserved.</p>
                           </td>
@@ -123,7 +123,7 @@ async function main() {
                       <tbody>
                         <tr>
                           <td>
-                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}" rel="noopener noreferrer">Documentation</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
+                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}" rel="noopener noreferrer">Help Center</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
                           <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left">This was an automated message sent by ${process.env.BASE_URL ?? "https://pepperminto.dev"} -> An open source helpdesk solution</p>
                             <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left;margin-bottom:50px">©2022 Pepperminto Ticket Management, a Pepperminto Labs product.<br />All rights reserved.</p>
                           </td>
@@ -163,7 +163,7 @@ async function main() {
                       <tbody>
                         <tr>
                           <td>
-                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}" rel="noopener noreferrer">Documentation</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
+                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}" rel="noopener noreferrer">Help Center</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
                           <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left">This was an automated message sent by ${process.env.BASE_URL ?? "https://pepperminto.dev"} -> An open source helpdesk solution</p>
                             <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left;margin-bottom:50px">©2022 Pepperminto Ticket Management, a Pepperminto Labs product.<br />All rights reserved.</p>
                           </td>
@@ -211,7 +211,7 @@ async function main() {
                       <tbody>
                         <tr>
                           <td>
-                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.DOCS_URL ?? "https://docs.pepperminto.dev"}" rel="noopener noreferrer">Documentation</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
+                          <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="${process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}" rel="noopener noreferrer">Help Center</a>   |   <a target="_blank" style="color:#b7b7b7;text-decoration:underline" href="https://discord.gg/8XFkbgKmgv" rel="noopener noreferrer">Discord</a> </a>
                           <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left">This was an automated message sent by ${process.env.BASE_URL ?? "https://pepperminto.dev"} -> An open source helpdesk solution</p>
                             <p style="font-size:12px;line-height:15px;margin:16px 0;color:#b7b7b7;text-align:left;margin-bottom:50px">©2022 Pepperminto Ticket Management, a Pepperminto Labs product.<br />All rights reserved.</p>
                           </td>

@@ -278,7 +278,7 @@ export default function AdminLayout({ children }: any) {
               <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 items-center">
                 <div className="sm:flex hidden w-full justify-start items-center space-x-6">
                   {user.isAdmin && (
-                    <Link href="https://github.com/nulldoubt/Pepperminto/releases">
+                    <Link href="https://github.com/DelilahSaturn/pepperminto/releases">
                       <span className="inline-flex items-center rounded-md bg-green-700/10 px-3 py-2 text-xs font-medium text-green-600 ring-1 ring-inset ring-green-500/20">
                         Version 0.1.3
                       </span>
@@ -309,7 +309,7 @@ export default function AdminLayout({ children }: any) {
 
                   {user.isAdmin && (
                     <Link
-                      href="https://github.com/nulldoubt/Pepperminto/discussions"
+                      href="https://github.com/DelilahSaturn/pepperminto/discussions"
                       target="_blank"
                       className="hover:cursor-pointer"
                     >
@@ -334,10 +334,10 @@ export default function AdminLayout({ children }: any) {
             <footer className="border-t bg-background px-4 py-3 text-xs text-muted-foreground">
               <span>Source available at </span>
               <Link
-                href="https://github.com/nulldoubt/Pepperminto"
+                href="https://github.com/DelilahSaturn/pepperminto"
                 className="underline underline-offset-4 hover:text-foreground"
               >
-                github.com/nulldoubt/Pepperminto
+                github.com/DelilahSaturn/pepperminto
               </Link>
             </footer>
           </div>

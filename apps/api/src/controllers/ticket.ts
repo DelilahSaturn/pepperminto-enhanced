@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import axios from "axios";
+import jwt from "jsonwebtoken";
 import { checkToken } from "../lib/jwt";
 
 //@ts-ignore
@@ -56,6 +57,7 @@ export function ticketRoutes(fastify: FastifyInstance) {
               message: { type: "string" },
               success: { type: "boolean" },
               id: { type: "string" },
+              uploadToken: { type: "string" },
             },
             additionalProperties: true,
           },
@@ -79,7 +81,41 @@ export function ticketRoutes(fastify: FastifyInstance) {
       if (!user) {
         return reply.code(401).send({
           message: "Unauthorized",
+          success: false,
         });
+      }
+
+      if (
+        !title ||
+        !detail ||
+        !name ||
+        !email ||
+        typeof title !== "string" ||
+        typeof name !== "string" ||
+        typeof email !== "string"
+      ) {
+        return reply.code(400).send({
+          message: "Name, email, title and detail are required.",
+          success: false,
+        });
+      }
+
+      if (!validateEmail(email)) {
+        return reply.code(400).send({
+          message: "Invalid email address.",
+          success: false,
+        });
+      }
+
+      // Auto-link the ticket to a Client when no company was selected.
+      // This supports portal users (external) where company selection is hidden.
+      let inferredClientId: string | null = null;
+      if (company === undefined && typeof email === "string" && email.trim()) {
+        const existingClient = await prisma.client.findUnique({
+          where: { email: email.trim() },
+          select: { id: true },
+        });
+        inferredClientId = existingClient?.id ?? null;
       }
 
       const ticket: any = await prisma.ticket.create({
@@ -87,7 +123,7 @@ export function ticketRoutes(fastify: FastifyInstance) {
           name,
           title,
           detail: JSON.stringify(detail),
-          priority: priority ? priority : "low",
+          priority: priority ? priority.toLowerCase() : "low",
           email,
           type: type ? type.toLowerCase() : "support",
           createdBy: createdBy
@@ -96,6 +132,7 @@ export function ticketRoutes(fastify: FastifyInstance) {
                 name: createdBy.name,
                 role: createdBy.role,
                 email: createdBy.email,
+                external_user: createdBy.external_user ?? false,
               }
             : undefined,
           client:
@@ -103,6 +140,8 @@ export function ticketRoutes(fastify: FastifyInstance) {
               ? {
                   connect: { id: company.id || company },
                 }
+              : inferredClientId
+              ? { connect: { id: inferredClientId } }
               : undefined,
           fromImap: false,
           assignedTo:
@@ -216,12 +255,44 @@ export function ticketRoutes(fastify: FastifyInstance) {
         createdBy,
       }: any = request.body;
 
+      if (
+        !title ||
+        !detail ||
+        !name ||
+        !email ||
+        typeof title !== "string" ||
+        typeof name !== "string" ||
+        typeof email !== "string"
+      ) {
+        return reply.code(400).send({
+          message: "Name, email, title and detail are required.",
+          success: false,
+        });
+      }
+
+      if (!validateEmail(email)) {
+        return reply.code(400).send({
+          message: "Invalid email address.",
+          success: false,
+        });
+      }
+
+      // Auto-link the ticket to a Client when no company was selected.
+      let inferredClientId: string | null = null;
+      if (company === undefined && typeof email === "string" && email.trim()) {
+        const existingClient = await prisma.client.findUnique({
+          where: { email: email.trim() },
+          select: { id: true },
+        });
+        inferredClientId = existingClient?.id ?? null;
+      }
+
       const ticket: any = await prisma.ticket.create({
         data: {
           name,
           title,
           detail: JSON.stringify(detail),
-          priority: priority ? priority : "low",
+          priority: priority ? priority.toLowerCase() : "low",
           email,
           type: type ? type.toLowerCase() : "support",
           createdBy: createdBy
@@ -230,6 +301,7 @@ export function ticketRoutes(fastify: FastifyInstance) {
                 name: createdBy.name,
                 role: createdBy.role,
                 email: createdBy.email,
+                external_user: createdBy.external_user ?? false,
               }
             : undefined,
           client:
@@ -237,6 +309,8 @@ export function ticketRoutes(fastify: FastifyInstance) {
               ? {
                   connect: { id: company.id || company },
                 }
+              : inferredClientId
+              ? { connect: { id: inferredClientId } }
               : undefined,
           fromImap: false,
           assignedTo:
@@ -249,60 +323,76 @@ export function ticketRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!email && !validateEmail(email)) {
-        await sendTicketCreate(ticket);
+      let uploadToken: string | undefined;
+      try {
+        const b64string = process.env.SECRET;
+        if (b64string) {
+          const secret = Buffer.from(b64string, "base64");
+          uploadToken = jwt.sign(
+            { kind: "guest_ticket_upload", ticketId: ticket.id },
+            secret,
+            { expiresIn: "30m" }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to generate guest upload token:", e);
       }
 
-      if (engineer && engineer.name !== "Unassigned") {
-        const assgined = await prisma.user.findUnique({
-          where: {
-            id: ticket.userId,
-          },
+      try {
+        if (email && validateEmail(email)) {
+          await sendTicketCreate(ticket);
+        }
+
+        if (engineer && engineer.name !== "Unassigned") {
+          const assgined = await prisma.user.findUnique({
+            where: { id: ticket.userId },
+          });
+
+          if (assgined) {
+            await sendAssignedEmail(assgined.email);
+          }
+
+          const user = await checkSession(request);
+          await assignedNotification(engineer, ticket, user);
+        }
+
+        const webhook = await prisma.webhooks.findMany({
+          where: { type: "ticket_created" },
         });
 
-        await sendAssignedEmail(assgined!.email);
+        for (let i = 0; i < webhook.length; i++) {
+          if (webhook[i].active === true) {
+            const message = {
+              event: "ticket_created",
+              id: ticket.id,
+              title: ticket.title,
+              priority: ticket.priority,
+              email: ticket.email,
+              name: ticket.name,
+              type: ticket.type,
+              createdBy: ticket.createdBy,
+              assignedTo: ticket.assignedTo,
+              client: ticket.client,
+            };
 
-        const user = await checkSession(request);
-
-        await assignedNotification(engineer, ticket, user);
-      }
-
-      const webhook = await prisma.webhooks.findMany({
-        where: {
-          type: "ticket_created",
-        },
-      });
-
-      for (let i = 0; i < webhook.length; i++) {
-        if (webhook[i].active === true) {
-          const message = {
-            event: "ticket_created",
-            id: ticket.id,
-            title: ticket.title,
-            priority: ticket.priority,
-            email: ticket.email,
-            name: ticket.name,
-            type: ticket.type,
-            createdBy: ticket.createdBy,
-            assignedTo: ticket.assignedTo,
-            client: ticket.client,
-          };
-
-          await sendWebhookNotification(webhook[i], message);
+            await sendWebhookNotification(webhook[i], message);
+          }
         }
+
+        const hog = track();
+        hog.capture({
+          event: "ticket_created",
+          distinctId: ticket.id,
+        });
+      } catch (e) {
+        console.error("Post-creation side effects failed:", e);
       }
-
-      const hog = track();
-
-      hog.capture({
-        event: "ticket_created",
-        distinctId: ticket.id,
-      });
 
       reply.status(200).send({
         message: "Ticket created correctly",
         success: true,
         id: ticket.id,
+        uploadToken,
       });
     }
   );
@@ -369,7 +459,12 @@ export function ticketRoutes(fastify: FastifyInstance) {
         include: {
           user: {
             select: {
+              id: true,
               name: true,
+              email: true,
+              image: true,
+              isAdmin: true,
+              external_user: true,
             },
           },
         },
@@ -704,19 +799,21 @@ export function ticketRoutes(fastify: FastifyInstance) {
         where: { id: id },
       });
 
+      const normalizedPriority = priority ? priority.toLowerCase() : undefined;
+
       await prisma.ticket.update({
         where: { id: id },
         data: {
           detail,
           note,
           title,
-          priority,
+          priority: normalizedPriority,
           status,
         },
       });
 
-      if (priority && issue!.priority !== priority) {
-        await priorityNotification(issue, user, issue!.priority, priority);
+      if (normalizedPriority && issue!.priority !== normalizedPriority) {
+        await priorityNotification(issue, user, issue!.priority, normalizedPriority);
       }
 
       if (status && issue!.status !== status) {

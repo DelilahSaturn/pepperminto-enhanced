@@ -53,7 +53,7 @@ export default function Home() {
                 </div>
                 <Link
                   target="_blank"
-                  href="https://github.com/nulldoubt/Pepperminto"
+                  href="https://github.com/DelilahSaturn/pepperminto"
                   className="rounded-md mt-4 sm:mt-0 bg-gray-600 px-2.5 whitespace-nowrap hover:text-white py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 "
                 >
                   Check it out
@@ -71,7 +71,7 @@ export default function Home() {
                 </div>
                 <Link
                   target="_blank"
-                  href="https://github.com/nulldoubt/Pepperminto"
+                  href="https://github.com/DelilahSaturn/pepperminto"
                   className="rounded-md flex-end bg-green-600 mt-4 whitespace-nowrap sm:mt-0 px-2.5 py-1.5 text-sm font-semibold hover:text-white text-white shadow-sm hover:bg-green-500 "
                 >
                   Check it out

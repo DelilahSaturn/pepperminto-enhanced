@@ -1,11 +1,13 @@
 import { getCookie } from "cookies-next";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shadcn/ui/button";
 import { Checkbox } from "@/shadcn/ui/checkbox";
 import { Input } from "@/shadcn/ui/input";
 import { Label } from "@/shadcn/ui/label";
-import { Textarea } from "@/shadcn/ui/textarea";
+import { toast } from "@/shadcn/hooks/use-toast";
+import { Link2 } from "lucide-react";
 import { MarkdownEditor } from "../../components/MarkdownEditor";
 
 async function getArticles() {
@@ -16,7 +18,6 @@ async function getArticles() {
       Authorization: `Bearer ${getCookie("session")}`,
     },
   });
-
   return res.json();
 }
 
@@ -24,7 +25,25 @@ function formatTags(tags: string[] | null | undefined) {
   return Array.isArray(tags) ? tags.join(", ") : "";
 }
 
-export default function KnowledgeBaseAdmin() {
+function slugify(value: string) {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+export async function getServerSideProps() {
+  return {
+    props: {
+      kbBaseUrl: process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_URL || process.env.KNOWLEDGE_BASE_URL || "",
+    },
+  };
+}
+
+export default function KnowledgeBaseAdmin({ kbBaseUrl }: { kbBaseUrl?: string }) {
+  const router = useRouter();
   const { data, refetch } = useQuery({
     queryKey: ["kb-admin"],
     queryFn: getArticles,
@@ -100,9 +119,7 @@ export default function KnowledgeBaseAdmin() {
   async function deleteArticle(id: string) {
     const res = await fetch(`/api/v1/knowledge-base/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${getCookie("session")}`,
-      },
+      headers: { Authorization: `Bearer ${getCookie("session")}` },
     });
 
     const data = await res.json();
@@ -126,6 +143,12 @@ export default function KnowledgeBaseAdmin() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/admin/knowledge-base-branding")}
+            >
+              Edit Branding
+            </Button>
             {mode === "list" ? (
               <Button
                 onClick={() => setMode("edit")}
@@ -172,6 +195,36 @@ export default function KnowledgeBaseAdmin() {
                   </div>
                   <div className="flex gap-2">
                     <Button
+                      variant="outline"
+                      size="icon"
+                      title="Copy public link"
+                      onClick={() => {
+                        const base = (kbBaseUrl || "").replace(/\/+$/, "");
+                        if (!base) {
+                          toast({ title: "Configuration Error", description: "KNOWLEDGE_BASE_URL is not set", variant: "destructive" });
+                          return;
+                        }
+
+                        const url = `${base}/articles/${article.slug || article.id}`;
+                        
+                        if (navigator.clipboard && window.isSecureContext) {
+                          navigator.clipboard.writeText(url).then(() => {
+                            toast({
+                              title: "Link copied",
+                              description: url,
+                              duration: 3000,
+                            });
+                          }).catch((err) => {
+                            toast({ title: "Failed to copy", description: String(err), variant: "destructive" });
+                          });
+                        } else {
+                          toast({ title: "Public Link", description: url });
+                        }
+                      }}
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </Button>
+                    <Button
                       onClick={() => editArticle(article)}
                     >
                       Edit
@@ -198,7 +251,13 @@ export default function KnowledgeBaseAdmin() {
                 </Label>
                 <Input
                   value={title}
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(event) => {
+                    const newTitle = event.target.value;
+                    setTitle(newTitle);
+                    if (!slug || slug === slugify(title)) {
+                      setSlug(slugify(newTitle));
+                    }
+                  }}
                   className="mt-2 bg-background/60"
                   placeholder="New article title"
                 />
@@ -281,6 +340,7 @@ export default function KnowledgeBaseAdmin() {
             </div>
           </div>
         )}
+
       </div>
     </main>
   );

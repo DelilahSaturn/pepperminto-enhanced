@@ -7,7 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shadcn/ui/select";
-import { getCookie } from "cookies-next";
+import { toast } from "@/shadcn/hooks/use-toast";
+import { Link2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -59,78 +60,82 @@ function isThisMonth(date, today) {
   );
 }
 
-async function fetchArticles(token) {
-  const res = await fetch(`/api/v1/knowledge-base/all`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  }).then((res) => res.json());
+async function fetchArticlesPublic(searchQuery: string) {
+  const params = new URLSearchParams();
+  if (searchQuery && searchQuery.trim().length > 0) {
+    params.set("q", searchQuery.trim());
+  }
+
+  const res = await fetch(
+    `/api/v1/knowledge-base/public?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  ).then((res) => res.json());
 
   return res;
 }
 
-export default function KnowledgeBaseIndex() {
+function getPreview(content: string) {
+  if (!content) return "";
+  let plain = content;
+  try {
+    const trimmed = content.trim();
+    if (trimmed.startsWith("[")) {
+      const blocks = JSON.parse(trimmed) as any[];
+      const extract = (block: any): string => {
+        const text = (block.content || [])
+          .map((c: any) => (c.text ? c.text : ""))
+          .join("");
+        const children = (block.children || [])
+          .map((child: any) => extract(child))
+          .join(" ");
+        return [text, children].filter(Boolean).join(" ");
+      };
+      plain = blocks.map(extract).join(" ");
+    }
+  } catch {
+  }
+
+  plain = plain.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (plain.length <= 160) return plain;
+  return plain.slice(0, 157) + "...";
+}
+
+export async function getServerSideProps() {
+  return {
+    props: {
+      kbBaseUrl: process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_URL || process.env.KNOWLEDGE_BASE_URL || "",
+    },
+  };
+}
+
+export default function KnowledgeBaseIndex({ kbBaseUrl }: { kbBaseUrl?: string }) {
   const { user } = useUser();
   const [sortBy, setSortBy] = useState("updatedAt");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const token = getCookie("session");
   const { data, isLoading } = useQuery({
-    queryKey: ["kbArticles"],
-    queryFn: () => fetchArticles(token),
+    queryKey: ["kbArticlesPublic", searchQuery],
+    queryFn: () => fetchArticlesPublic(searchQuery),
   });
 
   const router = useRouter();
 
-  async function createNew() {
-    const res = await fetch(`/api/v1/knowledge-base`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        title: "Untitled knowledge base article",
-        body: "",
-        tags: "",
-        published: true,
-      }),
-    }).then((res) => res.json());
-
-    if (res.success && res.article?.id) {
-      router.push(`/knowledge-base/${res.article.id}`);
-    }
-  }
-
   const sortedAndFilteredArticles = (articles) => {
     if (!articles) return [];
 
-    let filtered = articles.filter((article) =>
-      article.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    return filtered.sort((a, b) => {
+    const sorted = [...articles].sort((a, b) => {
       const dateA = new Date(a[sortBy]);
       const dateB = new Date(b[sortBy]);
-      //@ts-ignore
-      return dateB - dateA;
+      return dateB.getTime() - dateA.getTime();
     });
-  };
 
-  if (!user?.isAdmin) {
-    return (
-      <div className="px-6 py-10">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Knowledge Base
-        </h1>
-        <p className="mt-2 text-sm text-foreground">
-          Admin access is required to manage knowledge base content.
-        </p>
-      </div>
-    );
-  }
+    return sorted;
+  };
 
   return (
     <div className="px-4 py-4 sm:px-6 lg:px-8">
@@ -165,20 +170,9 @@ export default function KnowledgeBaseIndex() {
             <p className="text-sm text-gray-500">
               No knowledge base entries found.
             </p>
-            <Button variant="outline" size="sm" onClick={() => createNew()}>
-              New Article
-            </Button>
           </div>
         ) : (
           <div className="flex flex-col w-full max-w-2xl justify-center space-y-4">
-            {data && data.articles && data.articles.length > 0 && (
-              <div className="flex w-full justify-end">
-                <Button variant="outline" size="sm" onClick={() => createNew()}>
-                  New Article
-                </Button>
-              </div>
-            )}
-
             {data?.articles &&
               Object.entries(
                 groupArticlesByDate(
@@ -199,15 +193,49 @@ export default function KnowledgeBaseIndex() {
                             className="flex flex-row w-full justify-between items-center align-middle transition-colors"
                             onClick={() => router.push(`/knowledge-base/${item.id}`)}
                           >
-                            <div className="flex flex-col text-left">
+                            <div className="flex flex-col text-left max-w-[520px]">
                               <h2 className="text-md font-semibold text-gray-900 dark:text-white">
                                 {item.title}
                               </h2>
                               <span className="text-xs text-gray-500">
                                 {item.public ? "Published" : "Draft"}
                               </span>
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2 text-left">
+                                {getPreview(item.content || "")}
+                              </p>
                             </div>
                             <div className="space-x-2 flex flex-row items-center">
+                              <button
+                                type="button"
+                                title="Copy public link"
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const base = (kbBaseUrl || "").replace(/\/+$/, "");
+                                  if (!base) {
+                                    toast({ title: "Configuration Error", description: "KNOWLEDGE_BASE_URL is not set", variant: "destructive" });
+                                    return;
+                                  }
+                                  
+                                  const url = `${base}/articles/${item.slug || item.id}`;
+                                  
+                                  if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(url).then(() => {
+                                      toast({
+                                        title: "Link copied",
+                                        description: url,
+                                        duration: 3000,
+                                      });
+                                    }).catch((err) => {
+                                      toast({ title: "Failed to copy", description: String(err), variant: "destructive" });
+                                    });
+                                  } else {
+                                    toast({ title: "Public Link", description: url });
+                                  }
+                                }}
+                              >
+                                <Link2 className="h-4 w-4" />
+                              </button>
                               <span className="text-sm text-gray-500">
                                 {new Date(item.updatedAt).toLocaleTimeString(
                                   [],

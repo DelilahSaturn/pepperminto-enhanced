@@ -51,8 +51,16 @@ export const SessionProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Initial load
     fetchUserProfile();
-  }, [router]);
+
+    // Lightweight polling so things like notification counts
+    // (e.g. bell icon) stay up to date even when the user
+    // isn't on a ticket page.
+    const interval = setInterval(fetchUserProfile, 5000);
+
+    return () => clearInterval(interval);
+  }, [router.pathname]);
 
   return enablePosthog ? (
     <UserContext.Provider value={{ user, setUser, loading, fetchUserProfile }}>

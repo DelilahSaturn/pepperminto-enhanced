@@ -128,7 +128,7 @@ export default function Home() {
       <div className="w-full xl:w-[70%] max-w-5xl">
         <div className="block sm:hidden mb-4">
           {user.isAdmin && (
-            <Link href="https://github.com/nulldoubt/Pepperminto/releases">
+            <Link href="https://github.com/DelilahSaturn/pepperminto/releases">
               <span className="inline-flex items-center rounded-md bg-green-700/10 px-3 py-2 text-xs font-medium text-green-600 ring-1 ring-inset ring-green-500/20">
                 Version 0.1.3
               </span>

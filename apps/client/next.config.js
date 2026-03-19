@@ -9,10 +9,8 @@ module.exports = nextTranslate(
       ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1",
     },
     env: {
-      API_URL: process.env.API_URL,
       BASE_URL: process.env.BASE_URL,
       DASHBOARD_URL: process.env.DASHBOARD_URL,
-      DOCS_URL: process.env.DOCS_URL,
       KNOWLEDGE_BASE_URL: process.env.KNOWLEDGE_BASE_URL,
     },
   })

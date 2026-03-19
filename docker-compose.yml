@@ -11,56 +11,49 @@ services:
       - pepperminto_postgres:/var/lib/postgresql/data
     expose:
       - 5432
- 
-  api:
-    image: nulldoubt/pepperminto-api:latest
-    container_name: pepperminto_api
+
+  pepperminto:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: delilahsaturn/pepperminto:latest
+    container_name: pepperminto
     restart: unless-stopped
-    pull_policy: always
     depends_on:
       - postgres
     env_file: .env
     environment:
+      DB_USERNAME: pepperminto
+      DB_PASSWORD: pepperminto
+      DB_HOST: postgres
+      SECRET: ${SECRET}
+      UPLOADS_DIR: /app/uploads
       DATABASE_URL: postgresql://pepperminto:pepperminto@postgres:5432/pepperminto
     ports:
-      - "3121:3001"
- 
-  client:
-    build:
-      context: .
-      dockerfile: apps/client/Dockerfile
-    container_name: pepperminto_client
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3122:3002"
- 
-  docs:
-    image: nulldoubt/pepperminto-docs:latest
-    container_name: pepperminto_docs
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3123:3003"
- 
+      - "3121:3000"
+      - "3122:3001"
+    volumes:
+      - pepperminto_uploads:/app/uploads
+
   knowledge-base:
     build:
       context: .
       dockerfile: apps/knowledge-base/Dockerfile
-    image: pepperminto-knowledge-base
-    container_name: pepperminto_kb
+    image: delilahsaturn/pepperminto-knowledge-base:latest
+    container_name: pepperminto_knowledge_base
     restart: unless-stopped
+    depends_on:
+      - pepperminto
     env_file: .env
+    environment:
+      API_URL: http://pepperminto:3001
+      BASE_URL: ${BASE_URL-}
+      DASHBOARD_URL: ${DASHBOARD_URL-}
+      KNOWLEDGE_BASE_URL: ${KNOWLEDGE_BASE_URL-}
+      NODE_ENV: production
     ports:
-      - "3120:3000"
- 
-  landing-page:
-    image: nulldoubt/pepperminto-landing-page:latest
-    container_name: pepperminto_landing
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3124:3004"
- 
+      - "3124:3000"
+
 volumes:
   pepperminto_postgres:
+  pepperminto_uploads:

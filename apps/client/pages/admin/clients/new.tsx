@@ -8,15 +8,11 @@ export default function CreateClientPage() {
 
   const token = getCookie("session");
 
-  const [number, setNumber] = useState("");
-  const [contactName, setContactName] = useState("");
+  const [contactMethod, setContactMethod] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const isEnabled =
-    number.length > 0 &&
-    contactName.length > 0 &&
-    name.length > 0 &&
-    email.length > 0;
+    contactMethod.length > 0 && name.length > 0 && email.length > 0;
 
   async function createClient() {
     await fetch(`/api/v1/client/create`, {
@@ -26,8 +22,8 @@ export default function CreateClientPage() {
         Authorization: "Bearer " + token,
       },
       body: JSON.stringify({
-        number,
-        contactName,
+        number: contactMethod,
+        contactName: contactMethod,
         name,
         email,
       }),
@@ -91,15 +87,8 @@ export default function CreateClientPage() {
                         <input
                           type="text"
                           className="shadow-sm text-foreground bg-transparent focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Enter client primary contact name here..."
-                          onChange={(e) => setContactName(e.target.value)}
-                        />
-
-                        <input
-                          type="text"
-                          className="shadow-sm  text-foreground bg-transparent focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Enter client primary contact number here..."
-                          onChange={(e) => setNumber(e.target.value)}
+                          placeholder="Enter preferred contact method (e.g. phone, Discord, etc.)..."
+                          onChange={(e) => setContactMethod(e.target.value)}
                         />
                       </div>
                     </div>

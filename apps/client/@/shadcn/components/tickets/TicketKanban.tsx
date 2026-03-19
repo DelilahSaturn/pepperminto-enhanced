@@ -17,12 +17,12 @@ export default function TicketKanban({
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
   return (
-    <div className="flex-1 min-w-0 overflow-hidden">
-      <div className="flex gap-4 p-4 min-w-fit w-full overflow-x-auto">
+    <div className="flex-1 min-h-0 min-w-0 overflow-x-auto overflow-y-hidden">
+      <div className="flex h-full min-h-0 gap-4 p-4 pb-6 min-w-max w-max">
         {columns.map((column) => (
           <div
             key={column.id}
-            className={`w-[320px] flex-shrink-0 rounded-lg flex flex-col max-h-[calc(100vh-8rem)] transition-colors ${
+            className={`w-[320px] flex-shrink-0 rounded-lg flex flex-col min-h-0 transition-colors ${
               dragOverColumnId === column.id
                 ? "bg-primary/10 dark:bg-primary/20 ring-2 ring-primary"
                 : "bg-gray-50 dark:bg-gray-800/50"
@@ -58,7 +58,7 @@ export default function TicketKanban({
                 </span>
               </div>
             </div>
-            <div className="p-2 pb-4 space-y-2 overflow-y-auto flex-grow [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="min-h-0 p-2 space-y-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {column.tickets.map((ticket) => (
                 <div
                   key={ticket.id}

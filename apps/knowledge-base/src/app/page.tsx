@@ -7,9 +7,36 @@ export const dynamic = "force-dynamic";
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 const BASE_URL = process.env.BASE_URL || "https://pepperminto.dev";
-const DOCS_URL = process.env.DOCS_URL || "https://docs.pepperminto.dev";
 const DASHBOARD_URL =
   process.env.DASHBOARD_URL || "https://dashboard.demo.pepperminto.dev";
+
+type Branding = {
+  siteName: string;
+  title: string;
+  subtitle: string;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
+  accentColor: string;
+};
+
+async function getBranding(): Promise<Branding> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/v1/knowledge-base/public/branding`,
+      { cache: "no-store" }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.branding) return data.branding;
+    }
+  } catch {}
+  return {
+    siteName: "Knowledge Base",
+    title: "Help Center",
+    subtitle: "Search curated guides, troubleshooting checklists, and step-by-step workflows. Articles here are written by the team and updated with every release.",
+    accentColor: "#14b8a6",
+  };
+}
 
 type Article = {
   id: string;
@@ -114,7 +141,7 @@ export default async function KnowledgeBasePage({
   const resolved = await searchParams;
   const query = (typeof resolved.q === "string" ? resolved.q : resolved.q?.[0]) || "";
   const tag = (typeof resolved.tag === "string" ? resolved.tag : resolved.tag?.[0]) || "";
-  const articles = await getArticles(query, tag);
+  const [articles, branding] = await Promise.all([getArticles(query, tag), getBranding()]);
 
   const tags = Array.from(
     new Set(articles.flatMap((article) => article.tags || []))
@@ -124,22 +151,23 @@ export default async function KnowledgeBasePage({
     <div className="min-h-screen bg-grid text-slate-900 dark:text-slate-100">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
         <Link href="/" className="flex items-center gap-3">
-          <span className="text-2xl">🍵</span>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt="" className="h-8 max-w-[160px] object-contain" />
+          ) : (
+            <span className="text-2xl">🍵</span>
+          )}
           <span className="text-lg font-semibold tracking-wide">
-            Pepperminto Help Center
+            {branding.title}
           </span>
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-slate-600 dark:text-slate-300 md:flex">
           <a className="hover:text-slate-900 dark:hover:text-white" href={BASE_URL}>
             Main Site
           </a>
-          <a className="hover:text-slate-900 dark:hover:text-white" href={DOCS_URL}>
-            Docs
-          </a>
           <a className="hover:text-slate-900 dark:hover:text-white" href={DASHBOARD_URL}>
             Dashboard
           </a>
-          <a className="hover:text-slate-900 dark:hover:text-white" href="https://github.com/nulldoubt/Pepperminto">
+          <a className="hover:text-slate-900 dark:hover:text-white" href="https://github.com/DelilahSaturn/pepperminto">
             GitHub
           </a>
           <ThemeToggle />
@@ -150,17 +178,15 @@ export default async function KnowledgeBasePage({
       </header>
 
       <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-4">
-        <div className="rounded-3xl border border-slate-200 bg-white/80 px-8 py-10 shadow-2xl shadow-teal-500/5 dark:border-slate-800 dark:bg-slate-950/70">
+        <div className="rounded-3xl border border-slate-800/70 bg-slate-950/60 px-8 py-10 shadow-2xl shadow-teal-500/5">
           <p className="text-xs uppercase tracking-[0.3em] text-teal-700 dark:text-teal-300">
-            Knowledge Base
+            {branding.siteName}
           </p>
           <h1 className="mt-4 text-4xl font-semibold text-slate-900 md:text-5xl dark:text-white">
-            Find answers fast. Keep issues calm.
+            {branding.title}
           </h1>
           <p className="mt-4 max-w-2xl text-base text-slate-600 dark:text-slate-300">
-            Search curated guides, troubleshooting checklists, and step-by-step
-            workflows for running Pepperminto. Articles here are written by the
-            team and updated with every release.
+            {branding.subtitle}
           </p>
 
           <form className="mt-8 flex flex-col gap-4 md:flex-row">
@@ -225,7 +251,7 @@ export default async function KnowledgeBasePage({
             </div>
 
             {articles.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-8 text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
+              <div className="rounded-2xl border border-slate-800/70 bg-slate-950/50 p-8 text-slate-300">
                 No articles yet. Once the admin publishes entries, they will
                 appear here.
               </div>
@@ -234,7 +260,7 @@ export default async function KnowledgeBasePage({
                 <Link
                   key={article.id}
                   href={`/articles/${article.slug}`}
-                  className="group block rounded-2xl border border-slate-200 bg-white/70 p-6 transition hover:-translate-y-1 hover:border-teal-500 hover:shadow-xl hover:shadow-teal-500/10 dark:border-slate-800 dark:bg-slate-950/40"
+                  className="group block rounded-2xl border border-slate-800/70 bg-slate-950/50 p-6 transition hover:-translate-y-1 hover:border-teal-500 hover:shadow-xl hover:shadow-teal-500/10"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <h3 className="text-xl font-semibold text-slate-900 group-hover:text-teal-700 dark:text-white dark:group-hover:text-teal-200">
@@ -244,7 +270,7 @@ export default async function KnowledgeBasePage({
                       {formatDate(article.updatedAt)}
                     </span>
                   </div>
-                  <div className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-h-20 overflow-hidden prose prose-sm max-w-none dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400">
+                  <div className="relative mt-3 text-sm text-slate-600 dark:text-slate-300 max-h-20 overflow-hidden [-webkit-mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)] [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)] prose prose-sm max-w-none dark:prose-invert prose-a:text-sky-600 dark:prose-a:text-sky-400">
                     <div
                       dangerouslySetInnerHTML={{
                         __html: renderMarkdownToHtml(
@@ -264,7 +290,7 @@ export default async function KnowledgeBasePage({
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-6 dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6">
               <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-teal-700 dark:text-teal-300">
                 Popular Topics
               </h3>
@@ -288,7 +314,7 @@ export default async function KnowledgeBasePage({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-6 dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6">
               <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-teal-700 dark:text-teal-300">
                 Need more help?
               </h3>

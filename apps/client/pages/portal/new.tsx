@@ -7,7 +7,7 @@
 
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useUser } from "../../store/session";
 import { getCookie } from "cookies-next";
 import { toast } from "@/shadcn/hooks/use-toast";
@@ -18,6 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shadcn/ui/select";
+import { Card } from "@/shadcn/ui/card";
+import { Label } from "@/shadcn/ui/label";
+import { Input } from "@/shadcn/ui/input";
+import { Textarea } from "@/shadcn/ui/textarea";
+import { Button } from "@/shadcn/ui/button";
+import { LoaderCircle, Paperclip } from "lucide-react";
 
 const type = [
   { id: 5, name: "Incident" },
@@ -47,10 +53,74 @@ export default function ClientTicketNew() {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState(pri[0]?.name ?? "");
+   const [files, setFiles] = useState<File[]>([]);
+   const [isUploading, setIsUploading] = useState(false);
+   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+   const token = getCookie("session");
+
+   const onAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+     if (!e.target.files) return;
+     const incoming = Array.from(e.target.files);
+     const maxBytes = 10 * 1024 * 1024;
+
+     const accepted: File[] = [];
+     for (const file of incoming) {
+       const isVideo =
+         typeof file.type === "string" && file.type.startsWith("video/");
+       if (!isVideo && file.size > maxBytes) {
+         toast({
+           variant: "destructive",
+           title: "File too large",
+           description: "Maximum file size is 10 MB for attachments.",
+         });
+         continue;
+       }
+       accepted.push(file);
+     }
+
+     if (!accepted.length) {
+       e.target.value = "";
+       return;
+     }
+
+     setFiles((prev) => [...prev, ...accepted]);
+     e.target.value = "";
+   };
+
+   const removeFile = (idx: number) => {
+     setFiles((prev) => prev.filter((_, i) => i !== idx));
+   };
+
+   async function uploadAttachments(ticketId: string) {
+     if (!files.length) return;
+     if (!token) return;
+
+     setIsUploading(true);
+     try {
+       for (const file of files) {
+         const formData = new FormData();
+         formData.append("file", file);
+         const res = await fetch(
+           `/api/v1/storage/ticket/${ticketId}/upload/single`,
+           {
+             method: "POST",
+             body: formData,
+             headers: {
+               Authorization: `Bearer ${token}`,
+             },
+           }
+         );
+         const data = await res.json().catch(() => null);
+         if (!res.ok || !data?.success) continue;
+       }
+       setFiles([]);
+     } finally {
+       setIsUploading(false);
+     }
+   }
 
   async function submitTicket() {
-    const token = getCookie("session");
-
     setIsLoading(true);
     await fetch(`/api/v1/ticket/create`, {
       method: "POST",
@@ -78,15 +148,17 @@ export default function ClientTicketNew() {
       }),
     })
       .then((res) => res.json())
-      .then((res) => {
+      .then(async (res) => {
         if (res.success) {
           toast({
             variant: "default",
-            title: "Ticket Created",
+            title: "Ticket created",
             description: "Ticket created successfully",
           });
           setView("success");
           setTicketID(res.id);
+
+          await uploadAttachments(res.id);
         } else {
           toast({
             variant: "destructive",
@@ -99,25 +171,36 @@ export default function ClientTicketNew() {
   }
 
   return (
-    <div className="flex justify-center items-center content-center h-screen bg-gray-100">
+    <div className="flex justify-center items-center content-center min-h-screen bg-background">
       {view === "new" ? (
-        <div className="max-w-4xl min-w-[400px] sm:min-w-[600px] shadow-xl bg-white p-12 rounded-md">
-          <h1 className="font-bold text-2xl">Submit a Ticket</h1>
+        <Card
+          className="max-w-2xl w-full border-border/60 bg-card/80 p-10 shadow-lg backdrop-blur"
+          onDragOver={(e) => {
+            e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const dropped = Array.from(e.dataTransfer?.files || []);
+            if (dropped.length) setFiles((prev) => [...prev, ...dropped]);
+          }}
+        >
+          <h1 className="font-bold text-2xl text-foreground">Submit a Ticket</h1>
+          <span className="text-sm text-muted-foreground">
+            Need help? Submit a ticket and our support team will get back to you
+            as soon as possible.
+          </span>
 
-          <div className="my-4 flex flex-col space-y-4">
+          <div className="my-6 flex flex-col space-y-4">
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium leading-6 text-gray-900"
-              >
+              <Label htmlFor="subject" className="text-sm text-foreground">
                 Subject
-              </label>
+              </Label>
               <div className="mt-2">
-                <input
-                  type="email"
-                  name="email"
-                  id="email"
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-green-600 sm:text-sm sm:leading-6"
+                <Input
+                  type="text"
+                  name="subject"
+                  id="subject"
+                  className="bg-background/60"
                   placeholder="I can't login to my account"
                   onChange={(e) => setSubject(e.target.value)}
                   value={subject}
@@ -125,13 +208,11 @@ export default function ClientTicketNew() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium leading-6 text-gray-900">
-                Issue Type
-              </label>
+            <div>
+              <Label className="text-sm text-foreground">Issue Type</Label>
               <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select type" />
+                <SelectTrigger className="mt-2 bg-background/60">
+                  <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
                 <SelectContent>
                   {type.map((item) => (
@@ -143,12 +224,10 @@ export default function ClientTicketNew() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium leading-6 text-gray-900">
-                Priority
-              </label>
+            <div>
+              <Label className="text-sm text-foreground">Priority</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="mt-2 bg-background/60">
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,36 +241,88 @@ export default function ClientTicketNew() {
             </div>
 
             <div>
-              <label
-                htmlFor="comment"
-                className="block text-sm font-medium leading-6 text-gray-900"
-              >
+              <Label htmlFor="comment" className="text-sm text-foreground">
                 Description of Issue
-              </label>
+              </Label>
               <div className="mt-2">
-                <textarea
+                <Textarea
                   rows={4}
                   name="comment"
                   id="comment"
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  className="bg-background/60"
                   defaultValue={""}
-                  placeholder="I think i locked myself out!"
+                  placeholder="I think I locked myself out!"
                   onChange={(e) => setDescription(e.target.value)}
                   value={description}
                 />
               </div>
             </div>
 
-            <button
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-foreground">Attachments</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  className="hidden"
+                  id="portal-ticket-attachments"
+                  multiple
+                  onChange={onAddFiles}
+                  disabled={isLoading || isUploading}
+                  ref={fileInputRef}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoading || isUploading}
+                  className="gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploading ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                  Add files
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Files will be attached after ticket creation.
+                </span>
+              </div>
+              {files.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {files.map((f, idx) => (
+                    <div
+                      key={`${f.name}-${idx}`}
+                      className="flex items-center justify-between rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm"
+                    >
+                      <span className="truncate">{f.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(idx)}
+                        disabled={isLoading || isUploading}
+                        aria-label="Remove file"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button
               type="button"
               onClick={submitTicket}
-              disabled={isLoading}
-              className="rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 "
+              disabled={isLoading || isUploading}
+              className="self-start"
             >
               Submit Ticket
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : (
         <>
           <div className="rounded-md bg-green-600 shadow-md p-12">

@@ -29,7 +29,7 @@ export default function ShadLayout({ children }: any) {
     alert("You do not have the correct perms for that action.");
   }
 
-  if (user && user.external_user) {
+  if (user && user.external_user && !location.pathname.startsWith("/portal")) {
     location.push("/portal");
   }
 
@@ -48,7 +48,7 @@ export default function ShadLayout({ children }: any) {
                   <SidebarTrigger title="[" className="text-muted-foreground" />
                   <div className="hidden w-full items-center justify-start space-x-6 sm:flex">
                     {user.isAdmin && (
-                      <Link href="https://github.com/nulldoubt/Pepperminto/releases">
+                      <Link href="https://github.com/DelilahSaturn/pepperminto/releases">
                         <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                           Version 0.1.3
                         </span>
@@ -87,7 +87,7 @@ export default function ShadLayout({ children }: any) {
 
                     {user.isAdmin && (
                       <Link
-                        href="https://github.com/nulldoubt/Pepperminto/discussions"
+                        href="https://github.com/DelilahSaturn/pepperminto/discussions"
                         target="_blank"
                         className="hover:cursor-pointer"
                       >
@@ -105,7 +105,7 @@ export default function ShadLayout({ children }: any) {
                 </div>
               </div>
               {!loading && !user.external_user && (
-                <main className="min-h-screen">{children}</main>
+                <main className="flex-1 min-h-0">{children}</main>
               )}
             </div>
           </div>

@@ -23,11 +23,13 @@ Pepperminto is built upon the foundation of incredible open-source projects. We 
 Pepperminto evolves the original concept with modern tooling and enhanced functionality:
 
 ### 🎨 Modernized Admin Experience
+![Admin Panel](static/adminPanel.png)
 - **Rebuilt with shadcn/ui**: A completely overhauled interface using modern design patterns.
 - **Dark Mode Support**: Native dark mode across the entire dashboard and knowledge base.
 - **Responsive Design**: Fully usable across desktop, tablet, and mobile devices.
 
 ### 📚 Public Knowledge Base
+![Knowledge Base](static/kb.png)
 - **SEO Optimized**: A dedicated public-facing site for your articles and documentation.
 - **Admin CRUD Workflows**: Create, edit, and organize knowledge base articles directly from the dashboard.
 - **Custom Slugs**: User-friendly URLs for better discoverability and SEO.
@@ -105,3 +107,4 @@ docker compose up -d
 ## ⚖️ License
 
 Pepperminto is licensed under the GNU Affero General Public License (AGPLv3). See the `LICENSE` file for details.
+

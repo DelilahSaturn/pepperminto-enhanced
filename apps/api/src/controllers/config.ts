@@ -275,7 +275,7 @@ export function configRoutes(fastify: FastifyInstance) {
               success: { type: "boolean" },
               active: { type: "boolean" },
               email: { type: "object", additionalProperties: true },
-              verification: { type: "string" },
+              verification: {},
             },
             additionalProperties: true,
           },
@@ -301,12 +301,18 @@ export function configRoutes(fastify: FastifyInstance) {
         await new Promise((resolve, reject) => {
           provider.verify(function (error: any, success: any) {
             if (error) {
-              console.log("ERROR", error);
+              console.log("SMTP verification error:", error);
               reply.send({
                 success: true,
                 active: true,
                 email: config,
-                verification: error,
+                verification: {
+                  code: error.code || null,
+                  response: error.response || null,
+                  responseCode: error.responseCode || null,
+                  command: error.command || null,
+                  message: error.message || "Unknown SMTP error",
+                },
               });
             } else {
               console.log("SUCCESS", success);

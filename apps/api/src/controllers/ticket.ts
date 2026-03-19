@@ -1128,48 +1128,61 @@ export function ticketRoutes(fastify: FastifyInstance) {
         },
       });
 
-      await activeStatusNotification(ticket, user, status);
+      // Side-effects (notifications, email, webhooks) should not crash the request
+      try {
+        await activeStatusNotification(ticket, user, status);
+      } catch (err) {
+        console.error("Failed to send status notification:", err);
+      }
 
-      await sendTicketStatus(ticket);
+      try {
+        await sendTicketStatus(ticket);
+      } catch (err) {
+        console.error("Failed to send ticket status email:", err);
+      }
 
-      const webhook = await prisma.webhooks.findMany({
-        where: {
-          type: "ticket_status_changed",
-        },
-      });
+      try {
+        const webhook = await prisma.webhooks.findMany({
+          where: {
+            type: "ticket_status_changed",
+          },
+        });
 
-      for (let i = 0; i < webhook.length; i++) {
-        const url = webhook[i].url;
+        for (let i = 0; i < webhook.length; i++) {
+          const url = webhook[i].url;
 
-        if (webhook[i].active === true) {
-          const s = status ? "Completed" : "Outstanding";
-          if (url.includes("discord.com")) {
-            const message = {
-              content: `Ticket ${ticket.id} created by ${ticket.email}, has had it's status changed to ${s}`,
-              avatar_url:
-                "https://avatars.githubusercontent.com/u/76014454?s=200&v=4",
-              username: "Pepperminto.sh",
-            };
-            axios
-              .post(url, message)
-              .then((response) => {
-                console.log("Message sent successfully!");
-                console.log("Discord API response:", response.data);
-              })
-              .catch((error) => {
-                console.error("Error sending message:", error);
+          if (webhook[i].active === true) {
+            const s = status ? "Completed" : "Outstanding";
+            if (url.includes("discord.com")) {
+              const message = {
+                content: `Ticket ${ticket.id} created by ${ticket.email}, has had it's status changed to ${s}`,
+                avatar_url:
+                  "https://avatars.githubusercontent.com/u/76014454?s=200&v=4",
+                username: "Pepperminto.sh",
+              };
+              axios
+                .post(url, message)
+                .then((response) => {
+                  console.log("Message sent successfully!");
+                  console.log("Discord API response:", response.data);
+                })
+                .catch((error) => {
+                  console.error("Error sending message:", error);
+                });
+            } else {
+              await axios.post(`${webhook[i].url}`, {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  data: `Ticket ${ticket.id} created by ${ticket.email}, has had it's status changed to ${s}`,
+                }),
               });
-          } else {
-            await axios.post(`${webhook[i].url}`, {
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                data: `Ticket ${ticket.id} created by ${ticket.email}, has had it's status changed to ${s}`,
-              }),
-            });
+            }
           }
         }
+      } catch (err) {
+        console.error("Failed to send webhook notifications:", err);
       }
 
       reply.send({
@@ -1287,8 +1300,14 @@ export function ticketRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id }: any = request.body;
 
-      await prisma.ticket.delete({
-        where: { id: id },
+      // Delete all related records first, then the ticket, in a transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.ticketFile.deleteMany({ where: { ticketId: id } });
+        await tx.timeTracking.deleteMany({ where: { ticketId: id } });
+        await tx.notifications.deleteMany({ where: { ticketId: id } });
+        await tx.knowledgeBase.deleteMany({ where: { ticketId: id } });
+        await tx.comment.deleteMany({ where: { ticketId: id } });
+        await tx.ticket.delete({ where: { id: id } });
       });
 
       reply.send({

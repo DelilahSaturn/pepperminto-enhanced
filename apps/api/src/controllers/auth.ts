@@ -637,10 +637,12 @@ export function authRoutes(fastify: FastifyInstance) {
         }
 
         const protocol =
-          request.protocol ||
           (request.headers["x-forwarded-proto"] as string) ||
+          request.protocol ||
           "http";
-        const host = request.headers.host;
+        const host =
+          (request.headers["x-forwarded-host"] as string) ||
+          request.headers.host;
         const currentUrl = new URL(request.url, `${protocol}://${host}`);
 
         const state = currentUrl.searchParams.get("state");
@@ -661,9 +663,16 @@ export function authRoutes(fastify: FastifyInstance) {
           return reply.status(400).send("Invalid or expired session");
         }
 
+        // openid-client infers redirect_uri from the URL passed to authorizationCodeGrant.
+        // currentUrl is the API callback URL, but the IdP has the client-facing
+        // redirectUri registered. We must pass a URL with that path but keep the
+        // code/state query params so the token exchange succeeds.
+        const redirectUrl = new URL(oidc.redirectUri);
+        redirectUrl.search = currentUrl.search;
+
         let tokens = await oidcClient.authorizationCodeGrant(
           oidcConfig,
-          currentUrl,
+          redirectUrl,
           {
             pkceCodeVerifier: codeVerifier,
             expectedState: state,
@@ -677,11 +686,12 @@ export function authRoutes(fastify: FastifyInstance) {
           return reply.status(400).send("Missing access token");
         }
 
-        // Retrieve user information
+        // Retrieve user information — validate subject if claims are available
+        const claims = tokens.claims();
         const userInfo = await oidcClient.fetchUserInfo(
           oidcConfig,
           tokens.access_token,
-          oidcClient.skipSubjectCheck
+          claims?.sub ?? oidcClient.skipSubjectCheck
         );
 
         const userEmail = userInfo.email;
@@ -692,34 +702,32 @@ export function authRoutes(fastify: FastifyInstance) {
           });
         }
 
-        let user = await prisma.user.findUnique({
+        // Use upsert so concurrent logins don't cause a duplicate-key race condition.
+        // Existing users are left unchanged; new users are provisioned automatically.
+        const isNewUser = !(await prisma.user.findUnique({ where: { email: userEmail } }));
+
+        const user = await prisma.user.upsert({
           where: { email: userEmail },
+          update: {}, // existing users: no changes on login
+          create: {
+            email: userEmail,
+            password: await bcrypt.hash(generateRandomPassword(12), 10),
+            name: userInfo.name || userEmail.split("@")[0] || "New User",
+            isAdmin: false,
+            language: "en",
+            external_user: false,
+            firstLogin: true,
+          },
         });
 
-        await tracking("user_logged_in_oidc", {});
+        await tracking(isNewUser ? "user_created_oidc" : "user_logged_in_oidc", {});
 
-        if (!user) {
-          // Create a new basic user
-          user = await prisma.user.create({
-            data: {
-              email: userEmail,
-              password: await bcrypt.hash(generateRandomPassword(12), 10), // Set a random password of length 12
-              name: userInfo.name || "New User", // Use the name from userInfo or a default
-              isAdmin: false, // Set isAdmin to false for basic users
-              language: "en", // Set a default language
-              external_user: false, // Mark as external user
-              firstLogin: true, // Set firstLogin to true
-            },
-          });
-        }
-
-        var b64string = process.env.SECRET;
-        var secret = new Buffer(b64string!, "base64"); // Ta-da
+        const secret = Buffer.from(process.env.SECRET!, "base64");
 
         // Issue JWT token
         let signed_token = jwt.sign(
           {
-            data: { id: user.id },
+            data: { id: user.id, sessionId: crypto.randomBytes(32).toString("hex") },
           },
           secret,
           { expiresIn: "8h" }
@@ -731,6 +739,8 @@ export function authRoutes(fastify: FastifyInstance) {
             userId: user.id,
             sessionToken: signed_token,
             expires: new Date(Date.now() + 8 * 60 * 60 * 1000),
+            userAgent: request.headers["user-agent"] || "",
+            ipAddress: request.ip,
           },
         });
 
@@ -834,13 +844,12 @@ export function authRoutes(fastify: FastifyInstance) {
           });
         }
 
-        var b64string = process.env.SECRET;
-        var secret = new Buffer(b64string!, "base64"); // Ta-da
+        const secret = Buffer.from(process.env.SECRET!, "base64");
 
         // Issue JWT token
         let signed_token = jwt.sign(
           {
-            data: { id: user.id },
+            data: { id: user.id, sessionId: crypto.randomBytes(32).toString("hex") },
           },
           secret,
           { expiresIn: "8h" }
@@ -852,6 +861,8 @@ export function authRoutes(fastify: FastifyInstance) {
             userId: user.id,
             sessionToken: signed_token,
             expires: new Date(Date.now() + 8 * 60 * 60 * 1000),
+            userAgent: request.headers["user-agent"] || "",
+            ipAddress: request.ip,
           },
         });
 

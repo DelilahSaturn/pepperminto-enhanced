@@ -1,14 +1,18 @@
 import * as client from "openid-client";
 
-let oidcConfig: client.Configuration | null = null;
+const configCache = new Map<string, client.Configuration>();
 
 export async function getOidcClient(config: any) {
-  if (!oidcConfig) {
-    oidcConfig = await client.discovery(new URL(config.issuer), config.clientId, {
-      redirect_uris: [config.redirectUri],
-      response_types: ["code"],
-      token_endpoint_auth_method: "none",
-    });
+  const cacheKey = `${config.issuer}|${config.clientId}|${config.redirectUri}`;
+  if (!configCache.has(cacheKey)) {
+    configCache.set(
+      cacheKey,
+      await client.discovery(new URL(config.issuer), config.clientId, {
+        redirect_uris: [config.redirectUri],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      })
+    );
   }
-  return oidcConfig;
+  return configCache.get(cacheKey)!;
 }

@@ -27,7 +27,6 @@ export default function Login({}) {
         .then((res) => res.json())
         .then(async (res) => {
           if (res.user) {
-            // Ensure cookie is sent to /api/* as well as /dashboard/*
             setCookie("session", res.token, { path: "/" });
             if (res.user.external_user) {
               router.push("/portal");
@@ -175,9 +174,9 @@ export default function Login({}) {
                 {url && (
                   <Button
                     type="submit"
-                    onClick={() => router.push(url)}
                     variant="outline"
                     className="w-full"
+                    onClick={() => { window.location.href = url; }}
                   >
                     Sign in with OIDC
                   </Button>
@@ -191,8 +190,8 @@ export default function Login({}) {
           <span className="font-bold text-foreground">
             Built with 💚 by Pepperminto Labs
           </span>
-          <a
-            href={process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}
+          
+          <a  href={process.env.KNOWLEDGE_BASE_URL ?? process.env.BASE_URL ?? "https://pepperminto.dev"}
             target="_blank"
             className="text-foreground"
           >

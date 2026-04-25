@@ -30,6 +30,10 @@ const server: FastifyInstance = Fastify({
 });
 
 const publicRoutes = new Set([
+  "/api/v1/auth/check",
+  "/api/v1/auth/oidc/callback",
+  "/api/v1/auth/oauth/callback",
+  "/api/v1/auth/password-reset",
   "/",
   "/api/v1/auth/login",
   "/api/v1/auth/user/register/external",
@@ -52,11 +56,13 @@ function normalizeUrl(url: string) {
 }
 
 function isPublicRoute(url: string) {
-  const normalized = normalizeUrl(url);
+  const normalized = normalizeUrl(url.split("?")[0]);
   return (
     publicRoutes.has(normalized) ||
-    // Allow slight variations (trailing slashes, query strings) for known public endpoints
     normalized.startsWith("/api/v1/auth/user/register/external") ||
+    normalized.startsWith("/api/v1/auth/password-reset") ||
+    normalized.startsWith("/api/v1/auth/oidc/") ||
+    normalized.startsWith("/api/v1/auth/oauth/") ||
     normalized.startsWith("/docs/") ||
     normalized.startsWith("/api/v1/knowledge-base/public") ||
     normalized.startsWith("/api/v1/storage/public/")
